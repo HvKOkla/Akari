@@ -1,11 +1,13 @@
 
-```markdown
 # Contributing to Akari
 
 Thanks for your interest in Akari. This guide explains how to help.
 
+**Short version:** the engine is frozen. All contributions go to `std_akari/`.
+
 ## Table of contents
 
+- [The engine is frozen](#the-engine-is-frozen)
 - [Code of conduct](#code-of-conduct)
 - [What we're looking for](#what-were-looking-for)
 - [What we're NOT looking for](#what-were-not-looking-for)
@@ -14,9 +16,39 @@ Thanks for your interest in Akari. This guide explains how to help.
 - [Submitting code](#submitting-code)
 - [Code style](#code-style)
 - [Adding a standard library module](#adding-a-standard-library-module)
-- [The engine is frozen](#the-engine-is-frozen)
+- [Stability policy](#stability-policy)
 
 
+## The engine is frozen
+
+**Very important. Read this first.**
+
+The core files are **frozen forever**:
+
+- `src/lexer.js`
+- `src/Parser.js`
+- `src/transpiler.js`
+- `src/bundler.js`
+- `src/bundler.browser.js`
+
+**Do not modify them.**
+
+They are stable, tested, and complete. Any change risks breaking everything. Akari promises **10 years of stability** — this is how we keep that promise.
+
+**Any pull request that modifies these files will be rejected without discussion.**
+
+If you find a bug in the engine:
+
+1. **Report it** in an issue
+2. **Wait for discussion**
+3. **Don't submit a PR** until approved
+4. **Understand** that some bugs won't be fixed (see [Stability policy](#stability-policy))
+
+**All contributions go to `std_akari/`.**
+
+This is the rule. It keeps Akari small, safe, and stable.
+
+---
 
 ## Code of conduct
 
@@ -26,6 +58,7 @@ Disagreements are fine. Personal attacks are not.
 
 We're all here because we like programming languages. Let's keep it that way.
 
+---
 
 ## What we're looking for
 
@@ -43,6 +76,8 @@ We're all here because we like programming languages. Let's keep it that way.
 ## What we're NOT looking for
 
 - **New keywords** — Akari has 18. That's final.
+- **New syntax** — the language is frozen.
+- **Changes to built-ins** — `say`, `float32`, etc. are frozen.
 - **Networking** — Akari has no network access.
 - **File system access** — Akari runs in browsers too.
 - **Classes** — not now, not ever.
@@ -52,6 +87,7 @@ We're all here because we like programming languages. Let's keep it that way.
 
 If your idea needs any of these, it's not a good fit.
 
+---
 
 ## Reporting a bug
 
@@ -93,7 +129,8 @@ Answer these questions:
 1. **What does the feature do?**
 2. **Why is it useful?**
 3. **Show a small example.**
-4. **Does it add a keyword?** (if yes, it's probably rejected)
+4. **Does it add a keyword?** (if yes, it's rejected)
+5. **Does it modify the engine?** (if yes, it's rejected)
 
 Example:
 
@@ -109,7 +146,8 @@ import "maths/base"
 say(sqrt(16))    # 4
 ```
 
-**Adds a keyword?** No, just a stdlib function.
+**Adds a keyword?** No.
+**Modifies the engine?** No, just a stdlib function.
 ```
 
 ---
@@ -174,6 +212,8 @@ On Codeberg, click "New Pull Request". Explain:
 
 A maintainer will review it.
 
+**Reminder:** if your PR modifies `src/*.js`, it will be closed immediately.
+
 ---
 
 ## Code style
@@ -233,9 +273,6 @@ Example: `std_akari/geometry/circle.akari`
 ### 3. Write the code
 
 ```akari
-# ============================================================
-# Akari Standard Library - geometry/circle
-# ============================================================
 
 # Returns pi.
 def pi():
@@ -276,41 +313,49 @@ end
 ### 5. Update the wiki
 
 Create a page named after your module (e.g. `geometry-circle`).
-Link it from `Home`.
+Link it from `Home` and `_Sidebar`.
 
 ### 6. Submit
 
 Follow the [Submitting code](#submitting-code) steps.
 
----
 
-## The engine is frozen
+## Stability policy
 
-**Very important.**
+Akari promises **10 years of stability**.
 
-The core files are **frozen**:
+This means:
 
-- `src/lexer.js`
-- `src/Parser.js`
-- `src/transpiler.js`
-- `src/bundler.js`
-- `src/bundler.browser.js`
+- **No breaking changes** — ever
+- **No new keywords** — ever
+- **No syntax changes** — ever
+- **No changes to the engine** — ever
 
-**Do not modify them.**
+### What this means for bug reports
 
-They are stable, tested, and complete. Any change risks breaking everything.
+If a bug can be fixed **without** changing the engine, it will be fixed.
 
-If you find a bug in the engine:
+If a bug requires **changing the engine**, it will **not** be fixed. Instead:
 
-1. **Report it** in an issue
-2. **Wait for discussion**
-3. **Don't submit a PR** until approved
+1. It will be documented
+2. A workaround will be suggested (if possible)
+3. The issue will be closed with the label `wontfix`
 
-**All contributions go to `std_akari/`.**
+This is intentional. **Stability > fixes.**
 
-This is the rule. It keeps Akari small, safe, and maintainable.
+### What this means for features
 
----
+New features must:
+
+- Live in `std_akari/`
+- Not add keywords
+- Not modify the engine
+- Not break existing code
+
+If your feature meets these criteria, it's welcome.
+
+If not, it's not a good fit for Akari.
+
 
 ## Questions?
 
@@ -319,5 +364,5 @@ If anything is unclear, open an issue. We're friendly.
 Thanks for contributing.
 ```
 
-
+**Enregistre.**
 
