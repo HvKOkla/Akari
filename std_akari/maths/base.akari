@@ -1,0 +1,60 @@
+
+# Valeur absolue
+def positive(n):
+    if n < 0:
+        return 0 - n
+    end
+    return n
+end
+
+# Encadrement d'une valeur entre low et high
+def clamp(val, low, high):
+    if val < low:
+        return low
+    end
+    if val > high:
+        return high
+    end
+    return val
+end
+
+# Maximum de deux valeurs
+def max(a, b):
+    if a > b:
+        return a
+    end
+    return b
+end
+
+# Minimum de deux valeurs
+def min(a, b):
+    if a < b:
+        return a
+    end
+    return b
+end
+
+# Arrondi à l'entier le plus proche
+def round(n):
+    let reste = n % 1
+    if reste >= 0.5:
+        return n + (1 - reste)
+    end
+    return n - reste
+end
+
+# Signe d'un nombre (-1, 0 ou 1)
+def sign(n):
+    if n < 0:
+        return -1
+    end
+    if n > 0:
+        return 1
+    end
+    return 0
+end
+
+# Pourcentage : percent(20, 200) -> 40
+def percent(val, total):
+    return (val / 100) * total
+end

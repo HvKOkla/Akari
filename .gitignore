@@ -1,0 +1,17 @@
+# Node
+node_modules/
+npm-debug.log*
+
+# Build
+dist/
+build/
+*.tgz
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Éditeurs
+.vscode/
+.idea/
+*.swp
