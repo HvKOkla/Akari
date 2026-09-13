@@ -66,7 +66,8 @@ const SINGLE_CHAR_TOKENS = new Set([
     ':', '(', ')', '=', ',',
     '+', '-', '*', '/', '%',
     '>', '<', '!',
-    '[', ']', '.'
+    '[', ']', '.',
+    '{', '}'
 ]);
 
 const MAX_IDENTIFIER_LENGTH = 255;
@@ -120,13 +121,11 @@ function tokenize(code) {
     let line = 1;
     let col = 1;
 
-    // Accès sûr au caractère courant
     function peek(offset = 0) {
         const idx = i + offset;
         return idx >= 0 && idx < length ? code[idx] : '';
     }
 
-    // Avance d'un caractère, met à jour ligne/colonne
     function advance() {
         const ch = code[i];
         i++;
@@ -139,26 +138,20 @@ function tokenize(code) {
         return ch;
     }
 
-    // Avance de n caractères
     function advanceN(n) {
         for (let k = 0; k < n; k++) advance();
     }
-
-    // -----------------------------------------------------------------
-    // Sous-lecteurs
-    // -----------------------------------------------------------------
 
     function readNumber() {
         const startLine = line;
         const startCol = col;
         let raw = '';
 
-        // Détection préfixe hex / binaire / octal
         if (peek() === '0') {
             const next = peek(1).toLowerCase();
             if (next === 'x') {
-                raw += advance(); // 0
-                raw += advance(); // x
+                raw += advance();
+                raw += advance();
                 if (!isHexDigit(peek())) {
                     throw new LexerError(
                         `Littéral hexadécimal invalide : '${raw}'`,
@@ -218,7 +211,6 @@ function tokenize(code) {
             }
         }
 
-        // Décimal classique
         let hasDigits = false;
         while (isDigit(peek()) || peek() === '_') {
             if (peek() !== '_') {
@@ -228,16 +220,14 @@ function tokenize(code) {
             advance();
         }
 
-        // Partie fractionnaire
         if (peek() === '.' && isDigit(peek(1))) {
-            raw += advance(); // .
+            raw += advance();
             while (isDigit(peek()) || peek() === '_') {
                 if (peek() !== '_') raw += peek();
                 advance();
             }
         }
 
-        // Notation scientifique
         if (peek() === 'e' || peek() === 'E') {
             let exp = '';
             let j = 1;
@@ -252,7 +242,7 @@ function tokenize(code) {
                     'Format attendu : 1e5, 1e-5, 1e+5.'
                 );
             }
-            raw += advance(); // e
+            raw += advance();
             if (peek() === '+' || peek() === '-') raw += advance();
             while (isDigit(peek())) raw += advance();
         }
@@ -317,7 +307,7 @@ function tokenize(code) {
     function readString(quote) {
         const startLine = line;
         const startCol = col;
-        advance(); // consomme la quote
+        advance();
 
         let str = '';
 
@@ -331,7 +321,6 @@ function tokenize(code) {
             }
 
             if (peek() === '\n') {
-                // Les chaînes multi-lignes ne sont pas autorisées par défaut
                 throw new LexerError(
                     'Retour à la ligne dans une chaîne.',
                     line, col,
@@ -340,7 +329,7 @@ function tokenize(code) {
             }
 
             if (peek() === '\\') {
-                advance(); // consomme le backslash
+                advance();
                 const esc = peek();
                 switch (esc) {
                     case 'n':  str += '\n'; advance(); break;
@@ -351,7 +340,7 @@ function tokenize(code) {
                     case '"':  str += '"';  advance(); break;
                     case "'":  str += "'";  advance(); break;
                     case 'u': {
-                        advance(); // u
+                        advance();
                         let hex = '';
                         for (let k = 0; k < 4; k++) {
                             if (!isHexDigit(peek())) {
@@ -381,7 +370,7 @@ function tokenize(code) {
             advance();
         }
 
-        advance(); // consomme la quote fermante
+        advance();
 
         return {
             type: 'string',
@@ -391,17 +380,15 @@ function tokenize(code) {
     }
 
     function readComment() {
-        // Deux formes : '#' et '//'
         if (peek() === '/' && peek(1) === '/') {
             advanceN(2);
         } else {
-            advance(); // '#'
+            advance();
         }
 
         while (peek() !== '\n' && peek() !== '') {
             advance();
         }
-        // Le '\n' sera consommé par la boucle principale
     }
 
     function readTwoCharOrSingle() {
@@ -423,14 +410,9 @@ function tokenize(code) {
         return null;
     }
 
-    // -----------------------------------------------------------------
-    // Boucle principale
-    // -----------------------------------------------------------------
-
     while (i < length) {
         const ch = peek();
 
-        // Espaces et retours à la ligne
         if (isWhitespace(ch)) {
             advance();
             continue;
@@ -441,38 +423,32 @@ function tokenize(code) {
             continue;
         }
 
-        // Commentaires
         if (ch === '#' || (ch === '/' && peek(1) === '/')) {
             readComment();
             continue;
         }
 
-        // Nombres
         if (isDigit(ch)) {
             tokens.push(readNumber());
             continue;
         }
 
-        // Identifiants et mots-clés
         if (isIdentStart(ch)) {
             tokens.push(readIdentifierOrKeyword());
             continue;
         }
 
-        // Chaînes
         if (ch === '"' || ch === "'") {
             tokens.push(readString(ch));
             continue;
         }
 
-        // Opérateurs et ponctuation
         const opToken = readTwoCharOrSingle();
         if (opToken) {
             tokens.push(opToken);
             continue;
         }
 
-        // Caractère inconnu
         throw new LexerError(
             `Caractère inconnu : '${ch}' (code U+${ch.charCodeAt(0).toString(16).toUpperCase().padStart(4, '0')})`,
             line, col,
@@ -480,7 +456,6 @@ function tokenize(code) {
         );
     }
 
-    // Token EOF final (utile pour le parser)
     tokens.push({
         type: 'EOF',
         value: 'EOF',
@@ -490,13 +465,9 @@ function tokenize(code) {
     return tokens;
 }
 
-// ---------------------------------------------------------------------
-// Export
-// ---------------------------------------------------------------------
-
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { tokenize, LexerError };
 } else {
-    window.tokenize = LexerError;
+    window.tokenize = tokenize;
     window.LexerError = LexerError;
 }

@@ -44,12 +44,6 @@ let _transpile = null;
 
 /**
  * Le playground doit appeler ça AVANT bundleAndTranspile.
- *
- *   setupBrowserBundler({
- *     tokenize:  window.tokenize,
- *     parse:     window.parse,
- *     transpile: window.transpile,
- *   });
  */
 function setupBrowserBundler(deps) {
     if (!deps || typeof deps !== 'object') {
@@ -78,10 +72,6 @@ function requireSetup() {
 // Extraction des imports
 // ---------------------------------------------------------------------
 
-/**
- * Extrait la liste des imports d'un fichier Akari.
- * Utilise le lexer pour éviter de matcher dans les strings/commentaires.
- */
 function extractImports(source, filePath) {
     let tokens;
     try {
@@ -116,15 +106,12 @@ function extractImports(source, filePath) {
             column: tok.col
         });
 
-        i++; // saute le token string consommé
+        i++;
     }
 
     return imports;
 }
 
-/**
- * Retire les lignes d'import du source Akari.
- */
 function stripImports(source, imports) {
     if (imports.length === 0) return source;
 
@@ -139,17 +126,9 @@ function stripImports(source, imports) {
 // Résolution de module (URL-based)
 // ---------------------------------------------------------------------
 
-/**
- * Construit la liste des URLs candidates pour un import.
- *
- * @param {string} importName  ex: "maths/base" ou "./local"
- * @param {string} baseURL     URL du fichier qui importe (pour résoudre les relatifs)
- * @returns {string[]} URLs candidates
- */
 function buildCandidateURLs(importName, baseURL) {
     const candidates = [];
 
-    // Chemin explicite (./, ../, ou absolu http(s)://)
     if (importName.startsWith('./') ||
         importName.startsWith('../') ||
         importName.startsWith('/') ||
@@ -161,17 +140,13 @@ function buildCandidateURLs(importName, baseURL) {
         candidates.push(new URL(importName + '/index.akari', baseURL).href);
 
     } else {
-        // Relatif au fichier courant
         candidates.push(new URL(importName + '.akari', baseURL).href);
         candidates.push(new URL(importName + '/index.akari', baseURL).href);
 
-        // Dans std_akari/ (à côté de src/)
-        // On remonte depuis baseURL jusqu'à la racine projet
         const projectRoot = new URL('../', new URL('../', baseURL).href).href;
         candidates.push(new URL('std_akari/' + importName + '.akari', projectRoot).href);
         candidates.push(new URL('std_akari/' + importName + '/index.akari', projectRoot).href);
 
-        // std_akari/nom/nom.akari (pattern historique)
         const last = importName.split('/').pop();
         candidates.push(new URL('std_akari/' + importName + '/' + last + '.akari', projectRoot).href);
     }
@@ -179,10 +154,6 @@ function buildCandidateURLs(importName, baseURL) {
     return candidates;
 }
 
-/**
- * Essaie de charger une URL en .akari.
- * Retourne {url, source} ou null si aucune URL ne marche.
- */
 async function resolveAndFetch(importName, baseURL) {
     const candidates = buildCandidateURLs(importName, baseURL);
 
@@ -209,26 +180,20 @@ async function resolveAndFetch(importName, baseURL) {
 // Chargement récursif
 // ---------------------------------------------------------------------
 
-/**
- * Charge récursivement un fichier Akari et ses dépendances.
- * Version async utilisant fetch().
- */
 async function loadModuleGraph(entryURL) {
-    const cache      = new Map();     // url → { url, source, strippedSource, imports }
-    const visiting   = new Set();     // détection de cycles
-    const loaded     = [];            // ordre topologique
-    const loadedSet  = new Set();     // anti-doublon
-    const importChain = [];           // pile pour messages
+    const cache      = new Map();
+    const visiting   = new Set();
+    const loaded     = [];
+    const loadedSet  = new Set();
+    const importChain = [];
 
     async function load(url, depth) {
-        const absURL = new URL(url).href; // normalise
+        const absURL = new URL(url).href;
 
-        // Cache
         if (cache.has(absURL)) {
             return cache.get(absURL);
         }
 
-        // Profondeur
         if (depth > MAX_IMPORT_DEPTH) {
             throw new BundlerError(
                 `Profondeur d'import dépassée (${MAX_IMPORT_DEPTH}).`,
@@ -237,7 +202,6 @@ async function loadModuleGraph(entryURL) {
             );
         }
 
-        // Nombre de modules
         if (loaded.length >= MAX_MODULES) {
             throw new BundlerError(
                 `Trop de modules dans le bundle (max ${MAX_MODULES}).`,
@@ -245,7 +209,6 @@ async function loadModuleGraph(entryURL) {
             );
         }
 
-        // Cycle
         if (visiting.has(absURL)) {
             const cycleStart = importChain.indexOf(absURL);
             const cycle = importChain.slice(cycleStart).concat(absURL);
@@ -256,7 +219,6 @@ async function loadModuleGraph(entryURL) {
             );
         }
 
-        // Lecture via fetch
         let res;
         try {
             res = await fetch(absURL);
@@ -285,7 +247,6 @@ async function loadModuleGraph(entryURL) {
             );
         }
 
-        // Extraction des imports
         const imports = extractImports(source, absURL);
         const strippedSource = stripImports(source, imports);
 
@@ -297,21 +258,17 @@ async function loadModuleGraph(entryURL) {
         };
         cache.set(absURL, record);
 
-        // Marque en cours
         visiting.add(absURL);
         importChain.push(absURL);
 
-        // Charge les dépendances AVANT le parent (ordre topologique)
         for (const imp of imports) {
             const { url: depURL } = await resolveAndFetch(imp.path, absURL);
             await load(depURL, depth + 1);
         }
 
-        // Retire de la pile
         importChain.pop();
         visiting.delete(absURL);
 
-        // Ajoute au graphe
         if (!loadedSet.has(absURL)) {
             loadedSet.add(absURL);
             loaded.push(record);
@@ -344,15 +301,6 @@ function mergeModules(modules) {
 // Point d'entrée principal (async)
 // ---------------------------------------------------------------------
 
-/**
- * Bundle + transpile, version navigateur.
- *
- * @param {string} entryURL        URL du fichier .akari d'entrée
- * @param {object} [options]
- * @param {boolean} [options.verbose]
- * @param {function} [options.onError]
- * @returns {Promise<string>}      Code JS généré
- */
 async function bundleAndTranspile(entryURL, options = {}) {
     requireSetup();
 
@@ -369,7 +317,6 @@ async function bundleAndTranspile(entryURL, options = {}) {
     try {
         if (verbose) console.log(`[Bundler] Entrée : ${entryURL}`);
 
-        // 1. Chargement du graphe
         const { modules } = await loadModuleGraph(entryURL);
 
         if (verbose) {
@@ -377,10 +324,8 @@ async function bundleAndTranspile(entryURL, options = {}) {
             for (const m of modules) console.log(`  → ${m.url}`);
         }
 
-        // 2. Fusion
         const fullSource = mergeModules(modules);
 
-        // 3. Parsing
         let ast;
         try {
             ast = _parse(fullSource);
@@ -392,7 +337,6 @@ async function bundleAndTranspile(entryURL, options = {}) {
             );
         }
 
-        // 4. Transpilation
         let jsCode;
         try {
             jsCode = _transpile(ast);

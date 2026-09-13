@@ -32,31 +32,28 @@ class ParseError extends Error {
 }
 
 // ---------------------------------------------------------------------
-// Limites de sécurité (anti-DoS, anti-stack-overflow)
+// Limites de sécurité
 // ---------------------------------------------------------------------
 
 const LIMITS = Object.freeze({
-    MAX_SOURCE_LENGTH:   5 * 1024 * 1024,   // 5 MB de code
-    MAX_TOKENS:          500_000,           // tokens max
-    MAX_EXPR_DEPTH:      256,               // profondeur d'expression
-    MAX_BLOCK_DEPTH:     64,                // profondeur de blocs
-    MAX_PARAMS:          32,                // paramètres par fonction
-    MAX_BLOCK_STMTS:     10_000,            // statements par bloc
-    MAX_INDEX_DEPTH:     8                  // a[0][1][2]...
+    MAX_SOURCE_LENGTH:   5 * 1024 * 1024,
+    MAX_TOKENS:          500_000,
+    MAX_EXPR_DEPTH:      256,
+    MAX_BLOCK_DEPTH:     64,
+    MAX_PARAMS:          32,
+    MAX_BLOCK_STMTS:     10_000,
+    MAX_INDEX_DEPTH:     8,
+    MAX_LIST_LENGTH:     10_000,
+    MAX_TABLE_ENTRIES:   10_000
 });
 
-// Types de tokens qui peuvent démarrer une expression.
 const EXPRESSION_STARTERS = new Set([
     'number', 'string', 'identifier',
     'true', 'false', 'nothing',
-    '(', '-', '!'
+    '(', '-', '!', '[', '{'
 ]);
 
 function parse(code) {
-    // ------------------------------------------------------------------
-    // Sécurité : type + taille
-    // ------------------------------------------------------------------
-
     if (typeof code !== 'string') {
         throw new ParseError(
             `Le code source doit être une chaîne, reçu : ${typeof code}`,
@@ -84,15 +81,8 @@ function parse(code) {
     }
 
     let pos = 0;
-
-    // Compteur de profondeur d'expression (reset à chaque statement)
     let exprDepth = 0;
-    // Compteur de profondeur de blocs
     let blockDepth = 0;
-
-    // ------------------------------------------------------------------
-    // Helpers de lecture
-    // ------------------------------------------------------------------
 
     function peek(offset = 0) {
         return tokens[pos + offset] || { type: 'EOF', value: 'EOF', line: '?', col: '?' };
@@ -151,7 +141,7 @@ function parse(code) {
     }
 
     // ------------------------------------------------------------------
-    // Expressions (précédence correcte)
+    // Expressions
     // ------------------------------------------------------------------
 
     function parseExpression() {
@@ -234,45 +224,161 @@ function parse(code) {
     }
 
     // ------------------------------------------------------------------
-    // Postfix : gère les accès indexés a[0], a[0][1], etc.
+    // Postfix : gère les accès a[0], a.x, a[0].x, etc.
     // ------------------------------------------------------------------
 
     function parsePostfix() {
         let expr = parsePrimary();
 
         let depth = 0;
-        while (peek().type === '[') {
-            depth++;
-            if (depth > LIMITS.MAX_INDEX_DEPTH) {
-                throw new ParseError(
-                    `Trop d'index imbriqués (max ${LIMITS.MAX_INDEX_DEPTH}).`,
-                    peek().line, peek().col,
-                    'Simplifiez l\'accès.'
-                );
+        while (true) {
+            if (peek().type === '[') {
+                depth++;
+                if (depth > LIMITS.MAX_INDEX_DEPTH) {
+                    throw new ParseError(
+                        `Trop d'index imbriqués (max ${LIMITS.MAX_INDEX_DEPTH}).`,
+                        peek().line, peek().col,
+                        'Simplifiez l\'accès.'
+                    );
+                }
+
+                const bracketToken = next();
+                if (peek().type === ']') {
+                    throw new ParseError(
+                        `Index vide '[]'.`,
+                        peek().line, peek().col,
+                        'Indiquez un index : a[0]'
+                    );
+                }
+
+                const index = parseExpression();
+                expect(']', 'missing closing bracket for index');
+
+                expr = {
+                    type: 'index_access',
+                    target: expr,
+                    index,
+                    line: bracketToken.line,
+                    column: bracketToken.col
+                };
+                continue;
             }
 
-            const bracketToken = next(); // '['
-            if (peek().type === ']') {
-                throw new ParseError(
-                    `Index vide '[]'.`,
-                    peek().line, peek().col,
-                    'Indiquez un index : a[0]'
-                );
+            if (peek().type === '.') {
+                const dotToken = next();
+                const keyToken = expect('identifier', 'property name expected after "."');
+
+                expr = {
+                    type: 'table_access',
+                    target: expr,
+                    key: keyToken.value,
+                    line: dotToken.line,
+                    column: dotToken.col
+                };
+                continue;
             }
 
-            const index = parseExpression();
-            expect(']', 'missing closing bracket for index');
+            break;
+        }
 
-            expr = {
-                type: 'index_access',
-                target: expr,
-                index,
+        return expr;
+    }
+
+    // ------------------------------------------------------------------
+    // Listes
+    // ------------------------------------------------------------------
+
+    function parseList() {
+        const bracketToken = next();
+
+        const elements = [];
+
+        if (peek().type === ']') {
+            next();
+            return {
+                type: 'list',
+                elements,
                 line: bracketToken.line,
                 column: bracketToken.col
             };
         }
 
-        return expr;
+        elements.push(parseExpression());
+
+        while (peek().type === ',') {
+            next();
+            if (elements.length >= LIMITS.MAX_LIST_LENGTH) {
+                throw new ParseError(
+                    `Liste trop longue (max ${LIMITS.MAX_LIST_LENGTH}).`,
+                    peek().line, peek().col,
+                    'Découpez en plusieurs listes.'
+                );
+            }
+            if (peek().type === ']') break;
+            elements.push(parseExpression());
+        }
+
+        expect(']', 'missing closing bracket for list');
+
+        return {
+            type: 'list',
+            elements,
+            line: bracketToken.line,
+            column: bracketToken.col
+        };
+    }
+
+    // ------------------------------------------------------------------
+    // Tables
+    // ------------------------------------------------------------------
+
+    function parseTable() {
+        const braceToken = next();
+
+        const entries = [];
+
+        if (peek().type === '}') {
+            next();
+            return {
+                type: 'table',
+                entries,
+                line: braceToken.line,
+                column: braceToken.col
+            };
+        }
+
+        {
+            const keyToken = expect('identifier', 'table key expected');
+            expect('=', 'missing "=" after table key');
+            const value = parseExpression();
+            entries.push({ key: keyToken.value, value });
+        }
+
+        while (peek().type === ',') {
+            next();
+            if (entries.length >= LIMITS.MAX_TABLE_ENTRIES) {
+                throw new ParseError(
+                    `Table trop longue (max ${LIMITS.MAX_TABLE_ENTRIES}).`,
+                    peek().line, peek().col,
+                    'Découpez en plusieurs tables.'
+                );
+            }
+            if (peek().type === '}') break;
+
+            const keyToken = expect('identifier', 'table key expected');
+            expect('=', 'missing "=" after table key');
+            const value = parseExpression();
+            entries.push({ key: keyToken.value, value });
+        }
+
+        expect('}', 'missing closing brace for table');
+
+        return {
+            type: 'table',
+            entries,
+            line: braceToken.line,
+            column: braceToken.col
+        };
     }
 
     function parsePrimary() {
@@ -297,6 +403,14 @@ function parse(code) {
         if (token.type === 'nothing') {
             next();
             return { type: 'nothing', value: null, line: token.line, column: token.col };
+        }
+
+        if (token.type === '[') {
+            return parseList();
+        }
+
+        if (token.type === '{') {
+            return parseTable();
         }
 
         if (token.type === 'identifier') {
@@ -424,22 +538,48 @@ function parse(code) {
         };
     }
 
+    // ------------------------------------------------------------------
+    // For : deux formes
+    //   1) for i in 1..5:      (intervalle)
+    //   2) for x in collection: (collection)
+    // ------------------------------------------------------------------
     function parseForStatement(forToken) {
         const varToken = expect('identifier', 'loop variable name expected');
         expect('in', 'missing "in" in for loop');
-        const start = parseExpression();
-        expect('..', 'missing ".." in for range');
-        const end = parseExpression();
-        expect(':', 'missing colon after for loop');
+
+        // On parse la première expression
+        const firstExpr = parseExpression();
+
+        // Cas 1 : intervalle → on attend '..'
+        if (peek().type === '..') {
+            next(); // consomme '..'
+            const end = parseExpression();
+            expect(':', 'missing colon after for loop');
+
+            const body = parseBlock(new Set(['end']));
+            expect('end', 'missing "end" to close for loop');
+
+            return {
+                type: 'for',
+                varName: varToken.value,
+                start: firstExpr,
+                end,
+                body,
+                line: forToken.line,
+                column: forToken.col
+            };
+        }
+
+        // Cas 2 : collection → on attend ':'
+        expect(':', 'missing ":" after for ... in <collection>');
 
         const body = parseBlock(new Set(['end']));
         expect('end', 'missing "end" to close for loop');
 
         return {
-            type: 'for',
+            type: 'for_in',
             varName: varToken.value,
-            start,
-            end,
+            collection: firstExpr,
             body,
             line: forToken.line,
             column: forToken.col
@@ -614,10 +754,9 @@ function parse(code) {
             case 'identifier': {
                 const nextToken = peek(1);
 
-                // Réassignation simple : x = expr
                 if (nextToken.type === '=') {
-                    next(); // ident
-                    next(); // '='
+                    next();
+                    next();
                     const value = parseExpression();
                     return {
                         type: 'assignment',
@@ -630,18 +769,14 @@ function parse(code) {
                     };
                 }
 
-                // Appel de fonction : foo(...)
                 if (nextToken.type === '(') {
-                    next(); // ident
+                    next();
                     const call = parseFunctionCall(token);
-                    // Une expression seule n'est pas un statement : on
-                    // accepte uniquement l'appel de fonction.
                     return call;
                 }
 
-                // ✅ NOUVEAU : assignation indexée a[i] = expr
-                if (nextToken.type === '[') {
-                    return parseIndexAssignmentStatement();
+                if (nextToken.type === '[' || nextToken.type === '.') {
+                    return parseAccessAssignmentStatement();
                 }
 
                 throw new ParseError(
@@ -661,13 +796,11 @@ function parse(code) {
     }
 
     // ------------------------------------------------------------------
-    // Assignation indexée :  a[i] = expr
+    // Assignation indexée ou propriété
     // ------------------------------------------------------------------
 
-    function parseIndexAssignmentStatement() {
-        // On consomme l'identifiant puis parse le postfix complet
-        // pour récupérer le nœud index_access.
-        const identToken = next(); // ident
+    function parseAccessAssignmentStatement() {
+        const identToken = next();
         let target = {
             type: 'variable',
             name: identToken.value,
@@ -675,39 +808,62 @@ function parse(code) {
             column: identToken.col
         };
 
-        // Gère les chaînes a[0][1][2]
         let depth = 0;
-        while (peek().type === '[') {
+        while (peek().type === '[' || peek().type === '.') {
             depth++;
             if (depth > LIMITS.MAX_INDEX_DEPTH) {
                 throw new ParseError(
-                    `Trop d'index imbriqués (max ${LIMITS.MAX_INDEX_DEPTH}).`,
+                    `Trop d'accès imbriqués (max ${LIMITS.MAX_INDEX_DEPTH}).`,
                     peek().line, peek().col,
                     'Simplifiez l\'accès.'
                 );
             }
-            const bracketToken = next();
-            if (peek().type === ']') {
-                throw new ParseError(
-                    `Index vide '[]'.`,
-                    peek().line, peek().col,
-                    'Indiquez un index : a[0]'
-                );
-            }
-            const index = parseExpression();
-            expect(']', 'missing closing bracket for index');
 
-            target = {
-                type: 'index_access',
-                target,
-                index,
-                line: bracketToken.line,
-                column: bracketToken.col
-            };
+            if (peek().type === '[') {
+                const bracketToken = next();
+                if (peek().type === ']') {
+                    throw new ParseError(
+                        `Index vide '[]'.`,
+                        peek().line, peek().col,
+                        'Indiquez un index : a[0]'
+                    );
+                }
+                const index = parseExpression();
+                expect(']', 'missing closing bracket for index');
+
+                target = {
+                    type: 'index_access',
+                    target,
+                    index,
+                    line: bracketToken.line,
+                    column: bracketToken.col
+                };
+            } else {
+                const dotToken = next();
+                const keyToken = expect('identifier', 'property name expected after "."');
+                target = {
+                    type: 'table_access',
+                    target,
+                    key: keyToken.value,
+                    line: dotToken.line,
+                    column: dotToken.col
+                };
+            }
         }
 
-        expect('=', 'missing "=" after indexed target');
+        expect('=', 'missing "=" after target');
         const value = parseExpression();
+
+        if (target.type === 'table_access') {
+            return {
+                type: 'table_assignment',
+                target: target.target,
+                key: target.key,
+                value,
+                line: identToken.line,
+                column: identToken.col
+            };
+        }
 
         return {
             type: 'index_assignment',

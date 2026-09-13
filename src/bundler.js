@@ -12,8 +12,8 @@
 
 const fs = require('fs');
 const path = require('path');
-const { tokenize } = require('./lexer.js');
-const { parse } = require('./Parser.js');
+const { tokenize } = require('./core/lexer.js');
+const { parse } = require('./core/Parser.js');
 const { transpile } = require('./transpiler.js');
 
 // ---------------------------------------------------------------------

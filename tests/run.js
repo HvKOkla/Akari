@@ -60,9 +60,6 @@ function assertThrows(fn, msgPattern = null) {
   }
 }
 
-/**
- * Capture la sortie de `console.log` pendant l'exécution d'un programme.
- */
 function captureOutput(source) {
   const captured = [];
   const origLog = console.log;
@@ -233,6 +230,189 @@ test('run: reassign mut works', () => {
 test('run: type mismatch throws', () => {
   const src = 'mut x = 5\nx = "hello"';
   assertThrows(() => captureOutput(src), 'Type incohérent');
+});
+
+// --- Listes ---
+test('parser: empty list', () => {
+  const ast = akari.parse('let x = []');
+  assertEqual(ast[0].value.type, 'list');
+  assertEqual(ast[0].value.elements.length, 0);
+});
+
+test('parser: list with numbers', () => {
+  const ast = akari.parse('let x = [1, 2, 3]');
+  assertEqual(ast[0].value.type, 'list');
+  assertEqual(ast[0].value.elements.length, 3);
+});
+
+test('parser: list with mixed types', () => {
+  const ast = akari.parse('let x = [1, "hello", true]');
+  assertEqual(ast[0].value.elements.length, 3);
+});
+
+test('parser: trailing comma in list', () => {
+  const ast = akari.parse('let x = [1, 2, 3,]');
+  assertEqual(ast[0].value.elements.length, 3);
+});
+
+test('run: create and access list', () => {
+  const out = captureOutput(`
+    let x = [10, 20, 30]
+    say(x[0])
+    say(x[1])
+    say(x[2])
+  `);
+  assertEqual(out, ['10', '20', '30']);
+});
+
+test('run: modify list element', () => {
+  const out = captureOutput(`
+    mut x = [10, 20, 30]
+    x[1] = 99
+    say(x[1])
+  `);
+  assertEqual(out, ['99']);
+});
+
+test('run: nested list', () => {
+  const out = captureOutput(`
+    let x = [[1, 2], [3, 4]]
+    say(x[0][1])
+    say(x[1][0])
+  `);
+  assertEqual(out, ['2', '3']);
+});
+
+test('run: list with expressions', () => {
+  const out = captureOutput(`
+    let x = [1 + 2, 3 * 4]
+    say(x[0])
+    say(x[1])
+  `);
+  assertEqual(out, ['3', '12']);
+});
+
+// --- Tables ---
+test('parser: empty table', () => {
+  const ast = akari.parse('let x = {}');
+  assertEqual(ast[0].value.type, 'table');
+  assertEqual(ast[0].value.entries.length, 0);
+});
+
+test('parser: table with entries', () => {
+  const ast = akari.parse('let x = { a = 1, b = 2 }');
+  assertEqual(ast[0].value.type, 'table');
+  assertEqual(ast[0].value.entries.length, 2);
+});
+
+test('run: create and access table', () => {
+  const out = captureOutput(`
+    let p = { x = 400, y = 300 }
+    say(p.x)
+    say(p.y)
+  `);
+  assertEqual(out, ['400', '300']);
+});
+
+test('run: modify table property', () => {
+  const out = captureOutput(`
+    mut p = { x = 400, y = 300 }
+    p.x = 500
+    say(p.x)
+  `);
+  assertEqual(out, ['500']);
+});
+
+test('run: nested table', () => {
+  const out = captureOutput(`
+    let p = { pos = { x = 1, y = 2 } }
+    say(p.pos.x)
+    say(p.pos.y)
+  `);
+  assertEqual(out, ['1', '2']);
+});
+
+test('run: table with list', () => {
+  const out = captureOutput(`
+    let p = { noms = ["alice", "bob"] }
+    say(p.noms[0])
+    say(p.noms[1])
+  `);
+  assertEqual(out, ['alice', 'bob']);
+});
+
+// --- For-in (boucles sur collections) ---
+test('run: for-in over list', () => {
+  const out = captureOutput(`
+    let noms = ["alice", "bob", "charlie"]
+    for nom in noms:
+      say(nom)
+    end
+  `);
+  assertEqual(out, ['alice', 'bob', 'charlie']);
+});
+
+test('run: for-in over list of tables', () => {
+  const out = captureOutput(`
+    let entities = [
+      { x = 100, y = 200 },
+      { x = 300, y = 400 }
+    ]
+    for e in entities:
+      say(e.x)
+      say(e.y)
+    end
+  `);
+  assertEqual(out, ['100', '200', '300', '400']);
+});
+
+test('run: for-in with break', () => {
+  const out = captureOutput(`
+    let noms = ["a", "b", "c", "d"]
+    for nom in noms:
+      if nom == "c":
+        stop
+      end
+      say(nom)
+    end
+  `);
+  assertEqual(out, ['a', 'b']);
+});
+
+test('run: for-in with continue', () => {
+  const out = captureOutput(`
+    let noms = ["a", "b", "c"]
+    for nom in noms:
+      if nom == "b":
+        skip
+      end
+      say(nom)
+    end
+  `);
+  assertEqual(out, ['a', 'c']);
+});
+
+test('run: for-in over string', () => {
+  const out = captureOutput(`
+    let mot = "abc"
+    for lettre in mot:
+      say(lettre)
+    end
+  `);
+  assertEqual(out, ['a', 'b', 'c']);
+});
+
+test('run: for-in over float32 buffer', () => {
+  const out = captureOutput(`
+    mut v = float32(3)
+    v[0] = 10
+    v[1] = 20
+    v[2] = 30
+    for x in v:
+      say(x)
+    end
+  `);
+  assertEqual(out, ['10', '20', '30']);
 });
 
 // --- Result ---

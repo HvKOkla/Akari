@@ -1,12 +1,15 @@
 # ============================================================
-# Akari Standard Library — maths/vecteurs
+# Akari Standard Library - maths/vecteurs
 # Vecteurs 2D et 3D via buffers float32
 # ============================================================
+
+import "maths/base"
+
 
 # ================= VECTEUR 2D =================
 
 def vec2(x, y):
-    let v = float32(2)
+    mut v = float32(2)
     v[0] = x
     v[1] = y
     return v
@@ -28,8 +31,14 @@ def dot2(a, b):
     return a[0] * b[0] + a[1] * b[1]
 end
 
+# Longueur au carre (evite sqrt, plus rapide)
+def lengthSq2(v):
+    return dot2(v, v)
+end
+
+# Longueur (avec sqrt)
 def length2(v):
-    return positive(dot2(v, v))
+    return sqrt(lengthSq2(v))
 end
 
 def distance2(a, b):
@@ -48,7 +57,7 @@ end
 # ================= VECTEUR 3D =================
 
 def vec3(x, y, z):
-    let v = float32(3)
+    mut v = float32(3)
     v[0] = x
     v[1] = y
     v[2] = z
@@ -79,8 +88,14 @@ def cross3(a, b):
     )
 end
 
+# Longueur au carre
+def lengthSq3(v):
+    return dot3(v, v)
+end
+
+# Longueur (avec sqrt)
 def length3(v):
-    return positive(dot3(v, v))
+    return sqrt(lengthSq3(v))
 end
 
 def distance3(a, b):
