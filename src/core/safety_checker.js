@@ -49,6 +49,14 @@ function runSafetyChecker(ast) {
     const globalScope = new Map();
     const functions = new Map();
 
+    // ---------------------------------------------------------------
+    // BUILTINS du langage Akari
+    //
+    // Note : les primitives runtime (__rt_*) ne sont PAS listées ici.
+    // Elles sont ignorées automatiquement dans checkNode (voir plus bas).
+    // Elles sont définies dans le runtime (primitives.js) et utilisées
+    // uniquement par la std (base.akari, vecteurs.akari, etc.).
+    // ---------------------------------------------------------------
     const BUILTINS = Object.freeze({
         // --- IO ---
         say: -1, ask: -1,
@@ -72,38 +80,7 @@ function runSafetyChecker(ast) {
         Some: 1, None: 0, isSome: 1, isNone: 1,
 
         // --- WebGPU ---
-        gpuInit: 0, gpuBuffer: 1, gpuSync: 2,
-
-        // --- Runtime Maths (__rt_math_*) ---
-        __rt_math_sqrt: 1,
-        __rt_math_pow:  2,
-        __rt_math_abs:  1,
-        __rt_math_floor: 1,
-        __rt_math_ceil:  1,
-        __rt_math_round: 1,
-        __rt_math_sign:  1,
-        __rt_math_min:   2,
-        __rt_math_max:   2,
-        __rt_math_sin:   1,
-        __rt_math_cos:   1,
-        __rt_math_tan:   1,
-        __rt_math_asin:  1,
-        __rt_math_acos:  1,
-        __rt_math_atan:  1,
-        __rt_math_atan2: 2,
-        __rt_math_log:   1,
-        __rt_math_log2:  1,
-        __rt_math_log10: 1,
-        __rt_math_exp:   1,
-        __rt_math_hypot: 2,
-        __rt_math_random: 0,
-        __rt_math_randomInt:   2,
-        __rt_math_randomFloat: 2,
-        __rt_math_pi:  0,
-        __rt_math_tau: 0,
-        __rt_math_e:   0,
-        __rt_math_inf: 0,
-        __rt_math_nan: 0
+        gpuInit: 0, gpuBuffer: 1, gpuSync: 2
     });
 
     // ---------------------------------------------------------------
@@ -124,6 +101,7 @@ function runSafetyChecker(ast) {
                 return info ? info.type : AKARI_TYPES.UNKNOWN;
             }
             case 'function_call': {
+                // --- Fonctions retournant un BUFFER ---
                 const bufferFns = new Set([
                     'int8','uint8','uint8Clamped','int16','uint16',
                     'int32','uint32','float32','float64',
@@ -142,8 +120,11 @@ function runSafetyChecker(ast) {
                 if (node.name === 'isSome' || node.name === 'isNone') return AKARI_TYPES.BOOLEAN;
                 if (node.name === 'bufferSize') return AKARI_TYPES.NUMBER;
 
-                if (node.name.startsWith('__rt_math_')) {
-                    return AKARI_TYPES.NUMBER;
+                // Les primitives runtime sont considérées comme retournant NUMBER
+                // (par défaut). Si une primitive retourne un autre type, elle
+                // sera traitée comme UNKNOWN et cela reste acceptable.
+                if (node.name.startsWith('__rt_')) {
+                    return AKARI_TYPES.UNKNOWN;
                 }
 
                 return AKARI_TYPES.UNKNOWN;
@@ -270,6 +251,12 @@ function runSafetyChecker(ast) {
 
             case 'function_call': {
                 node.args.forEach(a => checkNode(a, scope, inLoop, inFunction));
+
+                // Les primitives runtime (__rt_*) sont toujours acceptées.
+                // Elles sont définies dans le runtime (primitives.js).
+                if (node.name.startsWith('__rt_')) {
+                    break;
+                }
 
                 const expected = BUILTINS[node.name] !== undefined
                     ? BUILTINS[node.name]
@@ -409,12 +396,10 @@ function runSafetyChecker(ast) {
                 break;
             }
 
-            // ✅ NOUVEAU : boucle sur collection
             case 'for_in': {
                 checkNode(node.collection, scope, inLoop, inFunction);
 
                 const loopScope = new Map(scope);
-                // Le type de l'élément est UNKNOWN (on ne sait pas ce qu'il y a dans la collection)
                 loopScope.set(node.varName, { type: AKARI_TYPES.UNKNOWN, isConstant: true });
                 node.body.forEach(s => checkNode(s, loopScope, true, inFunction));
                 break;

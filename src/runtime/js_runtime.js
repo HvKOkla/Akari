@@ -15,6 +15,21 @@ if (typeof require !== 'undefined') {
         MAX_ALLOCATION_BYTES,
         MAX_LOOP_ITERATIONS
     } = require('../core/safety_checker.js');
+    var primitives = require('./primitives.js');
+}
+
+// ---------------------------------------------------------------------
+// Génération des primitives runtime (__rt_*)
+// ---------------------------------------------------------------------
+
+function buildPrimitives() {
+    const lines = [];
+    for (const [name, info] of Object.entries(primitives)) {
+        if (info && info.js) {
+            lines.push(`const ${name} = ${info.js};`);
+        }
+    }
+    return lines.join('\n');
 }
 
 // ---------------------------------------------------------------------
@@ -133,39 +148,10 @@ const isBuffer   = (a)        => ArrayBuffer.isView(a) || a instanceof ArrayBuff
 const bufferSize = (a)        => (__akariCheckBuffer(a, 'bufferSize'), a.byteLength);
 
 // =============================================================
-// Maths Runtime — primitives utilisees par la std
+// Primitives runtime (__rt_*) — générées depuis primitives.js
 // =============================================================
 
-const __rt_math_sqrt      = (x) => Math.sqrt(x);
-const __rt_math_pow       = (x, y) => Math.pow(x, y);
-const __rt_math_abs       = (x) => Math.abs(x);
-const __rt_math_floor     = (x) => Math.floor(x);
-const __rt_math_ceil      = (x) => Math.ceil(x);
-const __rt_math_round     = (x) => Math.round(x);
-const __rt_math_sign      = (x) => Math.sign(x);
-const __rt_math_min       = (a, b) => Math.min(a, b);
-const __rt_math_max       = (a, b) => Math.max(a, b);
-const __rt_math_sin       = (x) => Math.sin(x);
-const __rt_math_cos       = (x) => Math.cos(x);
-const __rt_math_tan       = (x) => Math.tan(x);
-const __rt_math_asin      = (x) => Math.asin(x);
-const __rt_math_acos      = (x) => Math.acos(x);
-const __rt_math_atan      = (x) => Math.atan(x);
-const __rt_math_atan2     = (y, x) => Math.atan2(y, x);
-const __rt_math_log       = (x) => Math.log(x);
-const __rt_math_log2      = (x) => Math.log2(x);
-const __rt_math_log10     = (x) => Math.log10(x);
-const __rt_math_exp       = (x) => Math.exp(x);
-const __rt_math_hypot     = (a, b) => Math.hypot(a, b);
-const __rt_math_random    = () => Math.random();
-const __rt_math_randomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
-const __rt_math_randomFloat = (min, max) => Math.random() * (max - min) + min;
-
-const __rt_math_pi        = () => Math.PI;
-const __rt_math_tau       = () => Math.PI * 2;
-const __rt_math_e         = () => Math.E;
-const __rt_math_inf       = () => Infinity;
-const __rt_math_nan       = () => NaN;
+${buildPrimitives()}
 
 // =============================================================
 // GPU WebGPU (optionnel)
