@@ -1,14 +1,15 @@
 # =============================================================
 # Akari Standard Library - maths/base
-# Fonctions mathematiques de base.
-# 100% Akari pur : aucune dependance au runtime.
+# Basic math functions.
+# 100% pure Akari: no runtime dependency.
 # =============================================================
 
-# --- Racine carree (utilise le runtime) ---
+# --- Square root (uses the runtime) ---
 def sqrt(x):
     return __rt_math_sqrt(x)
 end
-# --- Valeur absolue ---
+
+# --- Absolute value ---
 def positive(n):
     if n < 0:
         return 0 - n
@@ -16,8 +17,7 @@ def positive(n):
     return n
 end
 
-
-# --- Encadrement ---
+# --- Clamp ---
 def clamp(val, low, high):
     if val < low:
         return low
@@ -28,7 +28,6 @@ def clamp(val, low, high):
     return val
 end
 
-
 # --- Maximum ---
 def max(a, b):
     if a > b:
@@ -36,7 +35,6 @@ def max(a, b):
     end
     return b
 end
-
 
 # --- Minimum ---
 def min(a, b):
@@ -46,8 +44,7 @@ def min(a, b):
     return b
 end
 
-
-# --- Arrondi ---
+# --- Round ---
 def round(n):
     let reste = n % 1
     if reste >= 0.5:
@@ -59,8 +56,7 @@ def round(n):
     return n - reste
 end
 
-
-# --- Signe ---
+# --- Sign ---
 def sign(n):
     if n < 0:
         return -1
@@ -71,63 +67,55 @@ def sign(n):
     return 0
 end
 
-
-# --- Pourcentage ---
+# --- Percentage ---
 def percent(val, total):
     return (val / 100) * total
 end
 
-
-# --- Interpolation lineaire ---
+# --- Linear interpolation ---
 def lerp(a, b, t):
     return a + (b - a) * t
 end
 
-
-# --- Interpolation lisse ---
+# --- Smooth interpolation ---
 def smoothstep(t):
-    if t < 0:
-        t = 0
+    mut x = t
+    if x < 0:
+        x = 0
     end
-    if t > 1:
-        t = 1
+    if x > 1:
+        x = 1
     end
-    return t * t * (3 - 2 * t)
+    return x * x * (3 - 2 * x)
 end
 
-
-# --- Re-mappage ---
+# --- Remapping ---
 def map(val, inMin, inMax, outMin, outMax):
     let t = (val - inMin) / (inMax - inMin)
     return outMin + (outMax - outMin) * t
 end
 
-
-# --- Comparaison approximative ---
+# --- Approximate comparison ---
 def approx(a, b, epsilon):
     return positive(a - b) < epsilon
 end
 
-
-# --- Borne 0-1 ---
+# --- Bound 0-1 ---
 def unit(x):
     return clamp(x, 0, 1)
 end
 
-
-# --- Carre ---
+# --- Square ---
 def square(x):
     return x * x
 end
-
 
 # --- Cube ---
 def cube(x):
     return x * x * x
 end
 
-
-# --- Pair / impair ---
+# --- Even / odd ---
 def isEven(n):
     return n % 2 == 0
 end
@@ -136,14 +124,12 @@ def isOdd(n):
     return n % 2 != 0
 end
 
-
 # --- Multiple ---
 def isMultiple(n, k):
     return n % k == 0
 end
 
-
-# --- Puissance entiere ---
+# --- Integer power ---
 def intPow(base, exp):
     mut result = 1
     mut i = 0
@@ -154,8 +140,7 @@ def intPow(base, exp):
     return result
 end
 
-
-# --- PGCD ---
+# --- GCD ---
 def gcd(a, b):
     mut x = positive(a)
     mut y = positive(b)
@@ -168,8 +153,7 @@ def gcd(a, b):
     return x
 end
 
-
-# --- PPCM ---
+# --- LCM ---
 def lcm(a, b):
     if a == 0:
         return 0
@@ -180,8 +164,7 @@ def lcm(a, b):
     return positive(a * b) / gcd(a, b)
 end
 
-
-# --- Factorielle ---
+# --- Factorial ---
 def factorial(n):
     if n <= 1:
         return 1
@@ -194,7 +177,6 @@ def factorial(n):
     end
     return result
 end
-
 
 # --- Fibonacci ---
 def fib(n):
@@ -217,20 +199,17 @@ def fib(n):
     return b
 end
 
-
-# --- Moyenne ---
+# --- Average ---
 def average(a, b):
     return (a + b) / 2
 end
 
-
-# --- Constante PI ---
+# --- PI constant ---
 def PI():
     return 3.141592653589793
 end
 
-
-# --- Conversion degres <-> radians ---
+# --- Degree <-> Radian conversion ---
 def degToRad(deg):
     return deg * PI() / 180
 end
