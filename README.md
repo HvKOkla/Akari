@@ -1,44 +1,55 @@
 
+```markdown
 # Akari
 
-> Learn to code in one week.
+> A safe, embeddable scripting language for your app.
 
-Akari is a small programming language with **18 keywords**. It's designed for people who want to learn to code without fighting the syntax.
+Your users can extend your app without breaking it. 
+Sandboxed by default. No I/O, no network, no crashes.
+19 keywords. Explicit `end`. Clear errors.
 
-**Status:** alpha · **Version:** 0.4.0 · **License:** Apache-2.0
+**Status:** alpha · **Version:** 0.5.0 · **License:** Apache-2.0
 
 ---
 
 ## Why Akari?
 
-Because Python hurt my eyes.
+Lua is 30 years old. JavaScript's `eval()` is a security nightmare. WASM is too low-level. 
 
-Indentation is fragile. One wrong space, and everything breaks. Akari uses `end` instead. Every block ends explicitly. No surprises.
+If you want to add **user scripting** to your game, editor, or SaaS, you need something **safe** by default. Akari was built for this.
 
-```akari
-if x > 10:
-    say("big")
-else:
-    say("small")
-end
-```
-
-That's it. You always know where a block ends.
+- **Safe by default** — `say`, I/O, and network access are disabled unless *you* allow them.
+- **Can't crash your app** — infinite loops and excessive memory are caught automatically by the engine.
+- **Clear errors** — your users understand what went wrong with plain-English hints.
+- **Tiny** — 19 keywords, 2 core files, zero dependencies.
 
 ---
 
-## Install
+## Embed in 10 lines
 
-```bash
-npm install -g akari-lang
-```
+Akari is designed to be embedded. You can run untrusted user code safely in your Node.js application:
 
-## Quick start
+```javascript
+const { Akari } = require('akari-lang');
 
-```bash
-akari init my-project
-cd my-project
-akari run main.akari
+const akari = new Akari({
+  allow: ['say'],          // Only allow what the script needs
+  maxIterations: 100_000,  // Prevent infinite loops
+  timeout: 1000            // Kill after 1 second
+});
+
+// Expose host functions to the script
+akari.expose('getPlayerHealth', () => player.health);
+akari.expose('damagePlayer', (amount) => player.damage(amount));
+
+// Run untrusted user code safely
+const result = akari.run(`
+  let hp = getPlayerHealth()
+  if hp < 10:
+    say("Low health!")
+    damagePlayer(100)
+  end
+`);
 ```
 
 ## Syntax
@@ -66,77 +77,36 @@ try:
 catch err:
     say(err)
 end
-
-import "maths"
 ```
 
 ## Keywords
 
-`import` · `def` · `end` · `return` · `if` · `else` · `else if` · `for` · `in` · `while` · `stop` · `skip` · `try` · `catch` · `true` · `false` · `nothing` · `let` · `mut`
+`import` · `def` · `end` · `return` · `if` · `else` · `for` · `in` · `while` · `stop` · `skip` · `try` · `catch` · `true` · `false` · `nothing` · `let` · `mut`
 
-## Commands
-
-```bash
-akari run <file>          # compile and execute
-akari build <file>        # compile to JavaScript
-akari check <file>        # syntax check
-akari exec "code"         # execute one line
-akari repl                # interactive mode
-akari init [name]         # create a project
-akari fmt <file>          # format code
-akari test [dir]          # run tests
-akari doc <file>          # generate docs
-akari stats <file>        # code statistics
-```
+*(19 keywords. That's it.)*
 
 ## Built-in functions
 
-**I/O:** `say` `ask` `toNumber` `toText` `kind`
+- **I/O:** `say` (requires `allow: ['say']`)
+- **Options:** `Some`, `None`, `isSome`, `isNone`
+- **Conversion:** `toNumber`, `toText`, `kind`
+- **Math:** `sqrt`, `pow`, `abs`, `random` (via `__rt_math_*`)
 
-**Options:** `Some` `None` `isSome` `isNone`
+## CLI
 
-**Buffers:** `int8` `uint8` `int16` `int32` `float32` `float64` `arrayBuffer` …
+If you just want to run Akari scripts locally:
 
-**Buffer ops:** `fill` `copy` `slice` `isBuffer` `bufferSize`
-
-**WebGPU:** `gpuInit` `gpuBuffer` `gpuSync` (experimental)
+```bash
+npm install -g akari-lang
+akari run <file>
+akari check <file>
+```
 
 ## Stability
 
 **Code written today will run in 10 years.**
 
-The engine is frozen. The syntax is final. The keyword count will never change.
-
 No breaking changes. Ever.
-
-→ Read the full [Stability promise](https://codeberg.org/HvK_Okla/Akari/wiki/Stability).
-
-## Playground
-
-Try Akari in your browser: *(coming soon)*
-
-## Documentation
-
-- [Wiki](https://codeberg.org/HvK_Okla/Akari/wiki) — full reference
-- [Documentation.md](Documentation.md) — condensed version
-- [Examples](https://codeberg.org/HvK_Okla/Akari/wiki/Examples) — real programs
-- [Cheatsheet](https://codeberg.org/HvK_Okla/Akari/wiki/Cheatsheet) — everything on one page
-
-## Development
-
-```bash
-git clone https://codeberg.org/HvK_Okla/Akari.git
-cd Akari
-npm test
-```
-
-All 21 tests should pass.
-
-## Contributing
-
-The engine is frozen. All contributions go to `std_akari/`.
-
-→ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
