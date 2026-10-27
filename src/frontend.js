@@ -91,7 +91,7 @@ function tokenize(code) {
     return tokens;
 }
 
-// --- PARSER --- (Version simplifiée pour l'exemple)
+// --- PARSER ---
 class ParseError extends Error {
     constructor(msg, line, col) { super(msg); this.name = 'ParseError'; this.line = line; this.column = col; }
 }
@@ -131,14 +131,49 @@ function parse(source) {
         return parseExpression();
     }
 
+    // --- NOUVEAU : Parseur d'expressions avec priorités ---
     function parseExpression() {
-        let left = parsePrimary();
-        while (peek().type === 'operator' || ['+', '-', '*', '/', '==', '!=', '>', '<', '<=', '>='].includes(peek().type)) {
-            const op = next().type;
-            const right = parsePrimary();
-            left = { type: 'binary', operator: op, left, right };
+        return parseBinary(0);
+    }
+
+    // Priorités des opérateurs (plus le chiffre est grand, plus l'opérateur est prioritaire)
+    const PRECEDENCE = {
+        '||': 1,
+        '&&': 2,
+        '==': 3, '!=': 3,
+        '<': 4, '>': 4, '<=': 4, '>=': 4,
+        '+': 5, '-': 5,
+        '*': 6, '/': 6, '%': 6
+    };
+
+    function parseBinary(minPrecedence) {
+        let left = parseUnary();
+
+        while (true) {
+            const opTok = peek();
+            const op = opTok.type;
+            const precedence = PRECEDENCE[op];
+            
+            // Si l'opérateur n'existe pas ou n'est pas assez prioritaire, on s'arrête
+            if (precedence === undefined || precedence < minPrecedence) break;
+
+            next(); // On consomme l'opérateur
+            const right = parseBinary(precedence + 1); // On parse le côté droit avec une priorité plus élevée (associativité à gauche)
+            
+            left = { type: 'binary', operator: op, left, right, line: opTok.line, column: opTok.col };
         }
+
         return left;
+    }
+
+    function parseUnary() {
+        const tok = peek();
+        if (tok.type === '-' || tok.type === '!') {
+            next();
+            const argument = parseUnary(); // Récursif pour gérer --x ou !!x
+            return { type: 'unary', operator: tok.type, argument, line: tok.line, column: tok.col };
+        }
+        return parsePrimary();
     }
 
     function parsePrimary() {
@@ -147,6 +182,14 @@ function parse(source) {
         if (tok.type === 'true') return { type: 'boolean', value: true };
         if (tok.type === 'false') return { type: 'boolean', value: false };
         if (tok.type === 'nothing') return { type: 'nothing' };
+        
+        // Gestion des parenthèses
+        if (tok.type === '(') {
+            const expr = parseExpression();
+            next(); // ')' 
+            return expr;
+        }
+
         if (tok.type === 'identifier') {
             if (peek().type === '(') {
                 next(); const args = [];
