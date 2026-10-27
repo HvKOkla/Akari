@@ -1,11 +1,21 @@
+/*
+ * Akari VM (v0.1) — LEGACY
+ * 
+ * This was the original stack-based virtual machine. 
+ * It was replaced in v0.5.0 by the flat transpiler architecture 
+ * for better safety, easier error handling, and native function scopes.
+ * 
+ * Do not use this in production. It is kept for historical reference only.
+ */
+
 class AkariVM {
     constructor() {
-        this.s = [];       
-        this.v = {};       
-        this.f = {};      
-        this.pc = 0;
-        this.i = [];       
-        this.o = [];       
+        this.s = [];       // Stack
+        this.v = {};       // Variables
+        this.f = {};       // Functions
+        this.pc = 0;       // Program counter
+        this.i = [];       // Instructions
+        this.o = [];       // Output
         this.loops = [];
         this.line = 0;     
     }
@@ -53,12 +63,21 @@ class AkariVM {
             }
         }
         else if (op === 'push') this.s.push(instr.value);
+        
         else if (op === 'store') {
+            // SECURITY: Validate variable name
+            if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(instr.name)) {
+                return this.error(`invalid variable name: '${instr.name}'`, instr, 'Use letters, numbers, and underscores only.');
+            }
             const val = this.s.pop();
             if (val === undefined) return this.error(`cannot store variable '${instr.name}' (stack is empty)`, instr, 'Did you forget to push a value?');
             this.v[instr.name] = val;
         }
         else if (op === 'load') {
+            // SECURITY: Validate variable name
+            if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(instr.name)) {
+                return this.error(`invalid variable name: '${instr.name}'`, instr, 'Use letters, numbers, and underscores only.');
+            }
             const val = this.v[instr.name];
             if (val === undefined) return this.error(`variable '${instr.name}' is not defined`, instr, 'Did you define it before using it? (e.g. x = 5)');
             this.s.push(val);
@@ -150,7 +169,14 @@ class AkariVM {
         else if (op === 'call') {
             const fn = this.f[instr.name];
             if (!fn) return this.error(`function '${instr.name}' is not defined`, instr, `Did you define it with 'def ${instr.name}'?`);
+            
+            // SCOPE FIX: Save global variables before calling the function
+            const savedVars = { ...this.v };
+            
             for (const sub of fn.body) this.exec(sub);
+            
+            // Restore global variables (local scope disappears)
+            this.v = savedVars;
         }
         else if (op === 'random') {
             const max = this.s.pop() || 1;
