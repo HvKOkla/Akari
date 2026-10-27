@@ -1,6 +1,9 @@
 /*
  * Akari Programming Language Engine — Frontend
  * (Lexer + Parser)
+ * 
+ * FROZEN: This file is part of the frozen engine.
+ * TOLERANCE ZERO: Strict parsing, no silent failures.
  */
 
 // --- LEXER ---
@@ -88,54 +91,104 @@ function tokenize(code) {
         throw new LexerError(`Unknown character: '${ch}'`, line, col);
     }
     tokens.push({ type: 'EOF', value: 'EOF', line, col });
-    return tokens;
+    return Object.freeze(tokens); // FROZEN
 }
 
 // --- PARSER ---
 class ParseError extends Error {
     constructor(msg, line, col) { super(msg); this.name = 'ParseError'; this.line = line; this.column = col; }
+    toString() {
+        return `❌ [ParseError] ${this.message}\n  --> Line ${this.line}, Column ${this.column}`;
+    }
 }
+
+const MAX_NESTING_DEPTH = 500;
 
 function parse(source) {
     const tokens = tokenize(source);
     let pos = 0;
+    let depth = 0;
+
     function peek() { return tokens[pos]; }
     function next() { return tokens[pos++]; }
+    function expect(type, hint = '') {
+        const tok = peek();
+        if (tok.type !== type) {
+            throw new ParseError(`Expected '${type}', got '${tok.type}'.`, tok.line, tok.col, hint);
+        }
+        return next();
+    }
+
+    function enterBlock() {
+        depth++;
+        if (depth > MAX_NESTING_DEPTH) {
+            throw new ParseError(`Maximum nesting depth exceeded (${MAX_NESTING_DEPTH}).`, peek().line, peek().col);
+        }
+    }
+    function exitBlock() { depth--; }
 
     function parseStatement() {
         const tok = peek();
+        
         if (tok.type === 'let' || tok.type === 'mut') {
-            next(); const name = next().value; next(); // '='
-            return { type: 'assignment', name, isMut: tok.type === 'mut', isDeclaration: true, value: parseExpression(), line: tok.line, column: tok.col };
+            next();
+            const nameTok = next();
+            if (nameTok.type !== 'identifier') throw new ParseError(`Expected identifier, got '${nameTok.type}'.`, nameTok.line, nameTok.col);
+            expect('=', "Did you forget the '=' sign?");
+            return { type: 'assignment', name: nameTok.value, isMut: tok.type === 'mut', isDeclaration: true, value: parseExpression(), line: tok.line, column: tok.col };
         }
         
-        // --- NOUVEAU : Gestion du mot-clé import ---
         if (tok.type === 'import') {
-            next(); // On passe 'import'
-            const pathTok = next(); // On récupère la string
+            next();
+            const pathTok = next();
+            if (pathTok.type !== 'string') throw new ParseError(`Expected string after 'import', got '${pathTok.type}'.`, pathTok.line, pathTok.col);
             return { type: 'import', path: pathTok.value, line: tok.line, column: tok.col };
         }
 
         if (tok.type === 'def') {
-            next(); const name = next().value; next(); // '('
+            next();
+            const nameTok = next();
+            if (nameTok.type !== 'identifier') throw new ParseError(`Expected function name, got '${nameTok.type}'.`, nameTok.line, nameTok.col);
+            expect('(');
             const params = [];
-            while (peek().type !== ')') { params.push(next().value); if (peek().type === ',') next(); }
-            next(); next(); // ')' et ':'
+            while (peek().type !== ')') {
+                const p = expect('identifier');
+                params.push(p.value);
+                if (peek().type === ',') next();
+            }
+            expect(')');
+            expect(':');
+            
+            enterBlock();
             const body = [];
             while (peek().type !== 'end' && peek().type !== 'EOF') body.push(parseStatement());
-            next(); // 'end'
-            return { type: 'function_def', name, params, body };
+            expect('end', "Did you forget 'end' to close the function?");
+            exitBlock();
+
+            return { type: 'function_def', name: nameTok.value, params, body };
         }
+
         if (tok.type === 'if') {
-            next(); const condition = parseExpression(); next(); // ':'
+            next();
+            const condition = parseExpression();
+            expect(':', "Did you forget ':' after 'if'?");
+            
+            enterBlock();
             const body = [];
             while (peek().type !== 'end' && peek().type !== 'else' && peek().type !== 'EOF') body.push(parseStatement());
+            
             const elseBody = [];
-            if (peek().type === 'else') { next(); next(); while (peek().type !== 'end' && peek().type !== 'EOF') elseBody.push(parseStatement()); }
-            next(); // 'end'
+            if (peek().type === 'else') {
+                next();
+                expect(':', "Did you forget ':' after 'else'?");
+                while (peek().type !== 'end' && peek().type !== 'EOF') elseBody.push(parseStatement());
+            }
+            expect('end', "Did you forget 'end' to close the if?");
+            exitBlock();
+
             return { type: 'if', condition, body, else: elseBody };
         }
-        // Fallback : expression
+
         return parseExpression();
     }
 
@@ -189,25 +242,32 @@ function parse(source) {
         if (tok.type === 'nothing') return { type: 'nothing' };
         
         if (tok.type === '(') {
+            enterBlock();
             const expr = parseExpression();
-            next(); // ')' 
+            expect(')', "Did you forget ')'?");
+            exitBlock();
             return expr;
         }
 
         if (tok.type === 'identifier') {
             if (peek().type === '(') {
-                next(); const args = [];
-                while (peek().type !== ')') { args.push(parseExpression()); if (peek().type === ',') next(); }
-                next(); return { type: 'function_call', name: tok.value, args, line: tok.line, column: tok.col };
+                next(); 
+                const args = [];
+                while (peek().type !== ')') { 
+                    args.push(parseExpression()); 
+                    if (peek().type === ',') next(); 
+                }
+                next(); 
+                return { type: 'function_call', name: tok.value, args, line: tok.line, column: tok.col };
             }
             return { type: 'variable', name: tok.value, line: tok.line, column: tok.col };
         }
-        return { type: 'number', value: 0 };
+        
+        throw new ParseError(`Unexpected token: '${tok.type}'.`, tok.line, tok.col, "Check for syntax errors.");
     }
 
     const ast = [];
     while (peek().type !== 'EOF') ast.push(parseStatement());
-    return ast;
+    return Object.freeze(ast); 
 }
-
-module.exports = { tokenize, parse, LexerError, ParseError };
+module.exports = Object.freeze({ tokenize, parse, LexerError, ParseError });
