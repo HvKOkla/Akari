@@ -1,18 +1,12 @@
 # ============================================================
-# Akari Standard Library - maths/vecteurs
-# Vecteurs 2D et 3D via buffers float32
+# Akari Standard Library - maths/vectors
+# 2D and 3D vectors using lists (safe, no buffers)
 # ============================================================
 
-import "maths/base"
-
-
-# ================= VECTEUR 2D =================
+# ================= 2D VECTORS =================
 
 def vec2(x, y):
-    mut v = float32(2)
-    v[0] = x
-    v[1] = y
-    return v
+    return [x, y]
 end
 
 def add2(a, b):
@@ -31,14 +25,15 @@ def dot2(a, b):
     return a[0] * b[0] + a[1] * b[1]
 end
 
-# Longueur au carre (evite sqrt, plus rapide)
+# Squared length (avoids sqrt, faster)
 def lengthSq2(v):
     return dot2(v, v)
 end
 
-# Longueur (avec sqrt)
+# Length (with sqrt)
+# Note: assumes 'sqrt' is available in the scope
 def length2(v):
-    return sqrt(lengthSq2(v))
+    return __rt_math_sqrt(lengthSq2(v))
 end
 
 def distance2(a, b):
@@ -54,14 +49,10 @@ def normalize2(v):
 end
 
 
-# ================= VECTEUR 3D =================
+# ================= 3D VECTORS =================
 
 def vec3(x, y, z):
-    mut v = float32(3)
-    v[0] = x
-    v[1] = y
-    v[2] = z
-    return v
+    return [x, y, z]
 end
 
 def add3(a, b):
@@ -88,14 +79,14 @@ def cross3(a, b):
     )
 end
 
-# Longueur au carre
+# Squared length
 def lengthSq3(v):
     return dot3(v, v)
 end
 
-# Longueur (avec sqrt)
+# Length (with sqrt)
 def length3(v):
-    return sqrt(lengthSq3(v))
+    return __rt_math_sqrt(lengthSq3(v))
 end
 
 def distance3(a, b):
