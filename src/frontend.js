@@ -91,7 +91,7 @@ function tokenize(code) {
     return tokens;
 }
 
-// --- PARSER --- (Version simplifiée pour l'exemple)
+// --- PARSER ---
 class ParseError extends Error {
     constructor(msg, line, col) { super(msg); this.name = 'ParseError'; this.line = line; this.column = col; }
 }
@@ -108,6 +108,14 @@ function parse(source) {
             next(); const name = next().value; next(); // '='
             return { type: 'assignment', name, isMut: tok.type === 'mut', isDeclaration: true, value: parseExpression(), line: tok.line, column: tok.col };
         }
+        
+        // --- NOUVEAU : Gestion du mot-clé import ---
+        if (tok.type === 'import') {
+            next(); // On passe 'import'
+            const pathTok = next(); // On récupère la string
+            return { type: 'import', path: pathTok.value, line: tok.line, column: tok.col };
+        }
+
         if (tok.type === 'def') {
             next(); const name = next().value; next(); // '('
             const params = [];
@@ -132,13 +140,45 @@ function parse(source) {
     }
 
     function parseExpression() {
-        let left = parsePrimary();
-        while (peek().type === 'operator' || ['+', '-', '*', '/', '==', '!=', '>', '<', '<=', '>='].includes(peek().type)) {
-            const op = next().type;
-            const right = parsePrimary();
-            left = { type: 'binary', operator: op, left, right };
+        return parseBinary(0);
+    }
+
+    const PRECEDENCE = {
+        '||': 1,
+        '&&': 2,
+        '==': 3, '!=': 3,
+        '<': 4, '>': 4, '<=': 4, '>=': 4,
+        '+': 5, '-': 5,
+        '*': 6, '/': 6, '%': 6
+    };
+
+    function parseBinary(minPrecedence) {
+        let left = parseUnary();
+
+        while (true) {
+            const opTok = peek();
+            const op = opTok.type;
+            const precedence = PRECEDENCE[op];
+            
+            if (precedence === undefined || precedence < minPrecedence) break;
+
+            next();
+            const right = parseBinary(precedence + 1);
+            
+            left = { type: 'binary', operator: op, left, right, line: opTok.line, column: opTok.col };
         }
+
         return left;
+    }
+
+    function parseUnary() {
+        const tok = peek();
+        if (tok.type === '-' || tok.type === '!') {
+            next();
+            const argument = parseUnary();
+            return { type: 'unary', operator: tok.type, argument, line: tok.line, column: tok.col };
+        }
+        return parsePrimary();
     }
 
     function parsePrimary() {
@@ -147,6 +187,13 @@ function parse(source) {
         if (tok.type === 'true') return { type: 'boolean', value: true };
         if (tok.type === 'false') return { type: 'boolean', value: false };
         if (tok.type === 'nothing') return { type: 'nothing' };
+        
+        if (tok.type === '(') {
+            const expr = parseExpression();
+            next(); // ')' 
+            return expr;
+        }
+
         if (tok.type === 'identifier') {
             if (peek().type === '(') {
                 next(); const args = [];

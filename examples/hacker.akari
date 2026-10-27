@@ -1,0 +1,14 @@
+say("Trying to hack the host...")
+
+# Tentative 1 : Lire un fichier sensible
+import "fs"
+say("File system accessed!")
+
+# Tentative 2 : Faire une requête réseau
+import "http"
+say("Network accessed!")
+
+# Tentative 3 : Bloquer le serveur (boucle infinie)
+while true:
+    say("Infinite loop!")
+end
