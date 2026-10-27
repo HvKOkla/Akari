@@ -1,4 +1,7 @@
-import "maths/base"
+# =============================================================
+# Akari Standard Library - maths/trig
+# Trigonometry functions.
+# =============================================================
 
 def sin(x):
     return __rt_math_sin(x)
