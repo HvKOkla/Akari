@@ -2,11 +2,12 @@
 ```markdown
 # Akari
 
-> A safe, embeddable scripting language for your app.
+# Akari
 
-Your users can extend your app without breaking it. 
-Sandboxed by default. No I/O, no network, no crashes.
-19 keywords. Explicit `end`. Clear errors.
+> **Safe by default. Small by design.**
+
+A safe, embeddable scripting language for your app.
+19 keywords. Explicit `end`. No I/O, no network, no crashes.
 
 **Status:** alpha · **Version:** 0.5.0 · **License:** Apache-2.0
 
