@@ -1,6 +1,6 @@
 {
   "name": "akari-lang",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "A safe, embeddable scripting language for your app. Sandboxed by default.",
   "main": "index.js",
   "bin": {
@@ -11,14 +11,16 @@
     "src/",
     "std_akari/",
     "index.js",
+    "backends/",
     "README.md",
-    "LICENSE"
+    "LICENSE.md"
   ],
   "scripts": {
     "test": "node tests.js",
     "test:verbose": "node tests.js --verbose",
+    "test:conformance": "node tests/conformance/run_conformance.js",
     "run": "node bin/akari.js",
-    "start": "node bin/akari.js examples/hello.akari"
+    "start": "node bin/akari.js examples/Hello.akari"
   },
   "keywords": [
     "language",
