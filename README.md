@@ -9,7 +9,7 @@
 A safe, embeddable scripting language for your app.
 19 keywords. Explicit `end`. No I/O, no network, no crashes.
 
-**Status:** alpha · **Version:** 0.5.0 · **License:** Apache-2.0
+**Status:**product · **Version:1.0.0 · **License:** Apache-2.0
 
 ---
 
