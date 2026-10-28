@@ -53,6 +53,12 @@ function checkNode(node) {
         }
     }
 
+    if (node.type === 'table_access') {
+        checkNode(node.target);
+        if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(node.key)) {
+            throw new CompileError(`Invalid member name: '${node.key}'.`, node.line, node.column);
+        }
+    }
     if (node.type === 'binary') { checkNode(node.left); checkNode(node.right); }
     if (node.type === 'unary') { checkNode(node.argument); }
     if (node.type === 'assignment') { checkNode(node.value); }
@@ -66,16 +72,18 @@ function checkNode(node) {
     if (node.type === 'if') { checkNode(node.condition); node.body.forEach(checkNode); node.else.forEach(checkNode); }
     if (node.type === 'while') { checkNode(node.condition); node.body.forEach(checkNode); }
     if (node.type === 'for') { checkNode(node.start); checkNode(node.end); node.body.forEach(checkNode); }
+    if (node.type === 'for_in') { checkNode(node.collection); node.body.forEach(checkNode); }
+    if (node.type === 'break' || node.type === 'continue') { /* no-op */ }
     if (node.type === 'return' && node.value) { checkNode(node.value); }
 }
 
 // ---------------------------------------------------------------------
 // Transpiler
 // ---------------------------------------------------------------------
-function transpile(ast) {
+function transpile(ast, options = {}) {
     ast.forEach(checkNode);
 
-    let output = buildRuntime();
+    let output = buildRuntime(options);
 
     function transpileNode(node, isExpr = false) {
         if (!node) return '';
@@ -137,6 +145,28 @@ function transpile(ast) {
     }
 }\n`;
             }
+
+            case 'for_in': {
+                const varName = node.varName;
+                const coll = transpileNode(node.collection, true);
+                return `{
+    const __akariColl = ${coll};
+    if (__akariColl === null || __akariColl === undefined) {
+        throw new Error("[Akari For] Cannot iterate over nothing.");
+    }
+    let __akariForInGuard = 0;
+    for (const ${varName} of __akariColl) {
+        if (++__akariForInGuard > __AKARI_MAX_ITER) {
+            throw new Error("[Akari For] Loop too long (max " + __AKARI_MAX_ITER + " iterations).");
+        }
+        ${node.body.map(s => transpileNode(s)).join('')}
+    }
+}\n`;
+            }
+
+            case 'table_access':
+                return `${transpileNode(node.target, true)}.${node.key}`;
+
             
             case 'return':
                 return node.value ? `return ${transpileNode(node.value, true)};\n` : 'return;\n';
@@ -163,9 +193,12 @@ function transpile(ast) {
 // ---------------------------------------------------------------------
 // Runtime (Le cœur de la sémantique Akari)
 // ---------------------------------------------------------------------
-function buildRuntime() {
+function buildRuntime(options = {}) {
+    const maxIter = Number.isFinite(options.maxIterations) && options.maxIterations > 0
+        ? Math.floor(options.maxIterations)
+        : MAX_LOOP_ITERATIONS;
     return `"use strict";
-const __AKARI_MAX_ITER = ${MAX_LOOP_ITERATIONS};
+const __AKARI_MAX_ITER = ${maxIter};
 
 // --- Semantique Akari (detachement de JS) ---
 

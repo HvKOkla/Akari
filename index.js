@@ -9,14 +9,41 @@
 
 const { tokenize, parse, LexerError, ParseError } = require('./src/frontend.js');
 const { transpile, CompileError } = require('./src/backend.js');
+const { transpileToSQL, SQLCompileError } = require('./backends/sql.js'); // NOUVEAU
 
 /**
  * Compile Akari code to JavaScript.
  */
-function compile(source) {
+function compile(source, options = {}) {
   const ast = parse(source);
-  return transpile(ast);
+  return transpile(ast, options);
 }
+
+/**
+ * Compile Akari code to SQL.
+ */
+function compileToSQL(source) {
+  const ast = parse(source);
+  return transpileToSQL(ast);
+}
+
+// Builtins purs exposes a tous les scripts (miroir des __rt_* du runtime).
+const BUILTINS = Object.freeze({
+  toText: (v) => String(v),
+  toNumber: (v) => Number(v),
+  kind: (v) => {
+    if (v === null || v === undefined) return 'nothing';
+    if (typeof v === 'number') return 'number';
+    if (typeof v === 'string') return 'string';
+    if (typeof v === 'boolean') return 'boolean';
+    if (Array.isArray(v)) return 'list';
+    if (typeof v === 'object') return 'table';
+    return 'unknown';
+  },
+  sqrt: Math.sqrt, pow: Math.pow, abs: Math.abs,
+  floor: Math.floor, ceil: Math.ceil, round: Math.round,
+  min: Math.min, max: Math.max, random: Math.random,
+});
 
 /**
  * Compile and execute Akari code (for CLI/tests only).
@@ -24,7 +51,7 @@ function compile(source) {
  */
 function run(source) {
   const js = compile(source);
-  const sandbox = { say: (...args) => console.log(...args) };
+  const sandbox = { say: (...args) => console.log(...args), ...BUILTINS };
   const fn = new Function(...Object.keys(sandbox), `"use strict";\n${js}`);
   return fn(...Object.values(sandbox));
 }
@@ -47,10 +74,12 @@ class Akari {
    * Expose a host function to the Akari script.
    */
   expose(name, fn) {
+    if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name)) {
+      throw new TypeError(`Akari.expose: invalid name '${name}'. Names must start with a letter or underscore.`);
+    }
     if (typeof fn !== 'function') {
       throw new TypeError(`Akari.expose: '${name}' must be a function.`);
     }
-    // On gèle la fonction pour éviter les modifications
     this.exposed.set(name, Object.freeze(fn));
   }
 
@@ -58,13 +87,10 @@ class Akari {
    * Compile and run Akari code in a sandboxed context.
    */
   run(source) {
-    const js = compile(source);
-    
+    const js = compile(source, { maxIterations: this.options.maxIterations });
+
     // 1. Construction du sandbox
-    const sandbox = {
-      // On expose les variables globales autorisées
-      __AKARI_MAX_ITER: this.options.maxIterations,
-    };
+    const sandbox = { ...BUILTINS };
 
     // On n'autorise "say" que si explicitement demandé
     if (this.options.allow.includes('say')) {
@@ -73,21 +99,24 @@ class Akari {
       sandbox.say = () => { throw new Error("[Akari I/O] say() is not allowed. Enable it with allow: ['say']."); };
     }
 
-    // 2. Ajout des fonctions exposées
+    // 2. Ajout des fonctions exposées (noms validés par expose())
     for (const [name, fn] of this.exposed) {
       sandbox[name] = fn;
     }
 
-    // 3. Exécution sécurisée (avec "use strict" et sans accès à globalThis)
-    // L'astuce du `new Proxy` empêche l'accès à `globalThis` depuis le code généré
+    // 3. Injection dans le scope du script
+    const names = Object.keys(sandbox);
+    const destructuring = names.length ? `const { ${names.join(', ')} } = __sandbox__;` : '';
+
     const fn = new Function(
-      '__sandbox__', 
+      '__sandbox__',
       `"use strict";
-       const { say, __AKARI_MAX_ITER } = __sandbox__;
        const process = undefined;
        const require = undefined;
+       const module = undefined;
        const globalThis = undefined;
        const window = undefined;
+       ${destructuring}
        ${js}
       `
     );
@@ -103,9 +132,11 @@ module.exports = Object.freeze({
   tokenize,
   parse,
   transpile,
+  compileToSQL, // NOUVEAU
   LexerError,
   ParseError,
   CompileError,
+  SQLCompileError, // NOUVEAU
   compile,
   run,
   Akari

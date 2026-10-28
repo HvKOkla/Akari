@@ -47,6 +47,7 @@ ${color('bold', 'USAGE')}
 
 ${color('bold', 'LANGUAGE')}
   ${color('cyan', 'run')}     <file.akari>       Compile and execute a file
+  ${color('cyan', 'build')}   <file.akari>       Compile to JavaScript or SQL
   ${color('cyan', 'check')}   <file.akari>       Check syntax only
   ${color('cyan', 'exec')}    "<code>"           Execute a one-liner
   ${color('cyan', 'repl')}                       Start an interactive REPL
@@ -65,13 +66,16 @@ ${color('bold', 'MISC')}
   ${color('cyan', 'help')}                       Show this help
 
 ${color('bold', 'OPTIONS')}
+  ${color('cyan', '-o, --out')} <file>           Output file for 'build'
+  ${color('cyan', '--sql')}                      Build to SQL instead of JS
   ${color('cyan', '-w, --watch')}                Auto-reload on file change
   ${color('cyan', '-v, --verbose')}              Verbose mode
   ${color('cyan', '-q, --quiet')}                Quiet mode
 
 ${color('bold', 'EXAMPLES')}
   akari run main.akari
-  akari run --watch main.akari
+  akari build main.akari -o main.js
+  akari build query.akari --sql -o query.sql
   akari exec 'say(2 + 2)'
   akari tokens main.akari
 
@@ -95,11 +99,6 @@ function requireFile(file) {
   }
 }
 
-function runJS(js) {
-  // Exécute le JS généré en utilisant l'API de Akari (qui gère le sandbox)
-  // Note: On utilise akari.run() directement dans les commandes, donc cette fonction n'est plus utile.
-}
-
 // ---------------------------------------------------------------------
 // Commands
 // ---------------------------------------------------------------------
@@ -119,6 +118,7 @@ function cmdRun(args, opts) {
     } catch (err) {
       const msg = err.toString ? err.toString() : (err.message || String(err));
       console.error(color('red', msg));
+      process.exitCode = 1;
     }
   };
 
@@ -134,6 +134,45 @@ function cmdRun(args, opts) {
     });
   } else {
     execute();
+  }
+}
+
+// --- NOUVEAU : cmdBuild ---
+function cmdBuild(args, opts) {
+  const file = args[0];
+  requireFile(file);
+
+  const source = fs.readFileSync(file, 'utf-8');
+
+  // Si l'option --sql est passée
+  if (opts.sql) {
+    try {
+      const sql = akari.compileToSQL(source);
+      const outFile = opts.out || file.replace('.akari', '.sql');
+      
+      fs.writeFileSync(outFile, sql, 'utf-8');
+      if (!opts.quiet) console.log(color('green', `✔ SQL written to ${outFile}`));
+    } catch (err) {
+      const msg = err.toString ? err.toString() : (err.message || String(err));
+      console.error(color('red', msg));
+      process.exit(1);
+    }
+    return;
+  }
+
+  // Sinon, on compile en JavaScript
+  try {
+    const js = akari.compile(source);
+    if (opts.out) {
+      fs.writeFileSync(opts.out, js, 'utf-8');
+      if (!opts.quiet) console.log(color('green', `✔ JS written to ${opts.out}`));
+    } else {
+      console.log(js);
+    }
+  } catch (err) {
+    const msg = err.toString ? err.toString() : (err.message || String(err));
+    console.error(color('red', msg));
+    process.exit(1);
   }
 }
 
@@ -374,7 +413,7 @@ function cmdStats(args, opts) {
 // ---------------------------------------------------------------------
 
 function parseArgs(argv) {
-  const opts = { verbose: false, quiet: false, watch: false };
+  const opts = { verbose: false, quiet: false, watch: false, sql: false, out: null };
   const args = [];
 
   for (let i = 0; i < argv.length; i++) {
@@ -382,6 +421,8 @@ function parseArgs(argv) {
     if (a === '-v' || a === '--verbose') opts.verbose = true;
     else if (a === '-q' || a === '--quiet') opts.quiet = true;
     else if (a === '-w' || a === '--watch') opts.watch = true;
+    else if (a === '--sql') opts.sql = true;
+    else if (a === '-o' || a === '--out') { opts.out = argv[++i]; }
     else if (a === '-h' || a === '--help') { printHelp(); process.exit(0); }
     else if (a === '--version') { console.log(VERSION); process.exit(0); }
     else args.push(a);
@@ -408,6 +449,7 @@ function main() {
 
   switch (command) {
     case 'run':     return cmdRun(args, opts);
+    case 'build':   return cmdBuild(args, opts); 
     case 'check':   return cmdCheck(args, opts);
     case 'exec':    return cmdExec(args, opts);
     case 'repl':    return cmdRepl();
