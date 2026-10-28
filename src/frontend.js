@@ -189,6 +189,51 @@ function parse(source) {
             return { type: 'if', condition, body, else: elseBody };
         }
 
+        // --- NOUVEAU : Gestion du for ---
+        if (tok.type === 'for') {
+            next();
+            const nameTok = expect('identifier');
+            expect('in');
+            const start = parseExpression();
+            expect('..');
+            const end = parseExpression();
+            expect(':');
+            
+            enterBlock();
+            const body = [];
+            while (peek().type !== 'end' && peek().type !== 'EOF') body.push(parseStatement());
+            expect('end', "Did you forget 'end' to close the for loop?");
+            exitBlock();
+
+            return { type: 'for', varName: nameTok.value, start, end, body };
+        }
+
+        // --- NOUVEAU : Gestion du while ---
+        if (tok.type === 'while') {
+            next();
+            const condition = parseExpression();
+            expect(':');
+            
+            enterBlock();
+            const body = [];
+            while (peek().type !== 'end' && peek().type !== 'EOF') body.push(parseStatement());
+            expect('end', "Did you forget 'end' to close the while loop?");
+            exitBlock();
+
+            return { type: 'while', condition, body };
+        }
+
+        // --- NOUVEAU : Gestion du return ---
+        if (tok.type === 'return') {
+            next();
+            // Si on est juste avant 'end', on retourne "nothing"
+            const nextTok = peek();
+            if (nextTok.type === 'end' || nextTok.type === 'EOF') {
+                return { type: 'return', value: null, line: tok.line, column: tok.col };
+            }
+            return { type: 'return', value: parseExpression(), line: tok.line, column: tok.col };
+        }
+
         return parseExpression();
     }
 
