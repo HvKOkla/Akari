@@ -1,0 +1,11 @@
+# stop and skip
+for i in 1..6:
+    if i % 2 == 0:
+        skip
+    end
+    if i > 4:
+        stop
+    end
+    say(i)
+end
+say("done")

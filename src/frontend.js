@@ -109,7 +109,7 @@ function parse(source) {
     let pos = 0;
     let depth = 0;
 
-    function peek() { return tokens[pos]; }
+    function peek(offset = 0) { const idx = pos + offset; return idx < tokens.length ? tokens[idx] : tokens[tokens.length - 1]; }
     function next() { return tokens[pos++]; }
     function expect(type, hint = '') {
         const tok = peek();
@@ -171,7 +171,7 @@ function parse(source) {
         if (tok.type === 'if') {
             next();
             const condition = parseExpression();
-            expect(':', "Did you forget ':' after 'if'?");
+            if (peek().type === ':') { next(); } else { expect(':'); }
             
             enterBlock();
             const body = [];
@@ -189,26 +189,39 @@ function parse(source) {
             return { type: 'if', condition, body, else: elseBody };
         }
 
-        // --- NOUVEAU : Gestion du for ---
+        // --- Gestion du for (numérique et collection) ---
         if (tok.type === 'for') {
             next();
             const nameTok = expect('identifier');
             expect('in');
             const start = parseExpression();
-            expect('..');
-            const end = parseExpression();
-            expect(':');
             
-            enterBlock();
-            const body = [];
-            while (peek().type !== 'end' && peek().type !== 'EOF') body.push(parseStatement());
-            expect('end', "Did you forget 'end' to close the for loop?");
-            exitBlock();
-
-            return { type: 'for', varName: nameTok.value, start, end, body };
+            if (peek().type === '..') {
+                next();
+                const end = parseExpression();
+                expect(':');
+                
+                enterBlock();
+                const body = [];
+                while (peek().type !== 'end' && peek().type !== 'EOF') body.push(parseStatement());
+                expect('end', "Did you forget 'end' to close the for loop?");
+                exitBlock();
+                
+                return { type: 'for', varName: nameTok.value, start, end, body };
+            } else {
+                expect(':');
+                
+                enterBlock();
+                const body = [];
+                while (peek().type !== 'end' && peek().type !== 'EOF') body.push(parseStatement());
+                expect('end', "Did you forget 'end' to close the for loop?");
+                exitBlock();
+                
+                return { type: 'for_in', varName: nameTok.value, collection: start, body };
+            }
         }
 
-        // --- NOUVEAU : Gestion du while ---
+        // --- Gestion du while ---
         if (tok.type === 'while') {
             next();
             const condition = parseExpression();
@@ -223,15 +236,36 @@ function parse(source) {
             return { type: 'while', condition, body };
         }
 
-        // --- NOUVEAU : Gestion du return ---
+        // --- Gestion du return ---
         if (tok.type === 'return') {
             next();
-            // Si on est juste avant 'end', on retourne "nothing"
             const nextTok = peek();
             if (nextTok.type === 'end' || nextTok.type === 'EOF') {
                 return { type: 'return', value: null, line: tok.line, column: tok.col };
             }
             return { type: 'return', value: parseExpression(), line: tok.line, column: tok.col };
+        }
+
+        // --- Gestion du stop / skip ---
+        if (tok.type === 'stop') {
+            next();
+            return { type: 'break', line: tok.line, column: tok.col };
+        }
+        if (tok.type === 'skip') {
+            next();
+            return { type: 'continue', line: tok.line, column: tok.col };
+        }
+
+        // Mots-cles reserves mais pas encore supportes : erreur claire.
+        if (tok.type === 'try' || tok.type === 'catch') {
+            throw new ParseError(`'${tok.type}' is a reserved keyword but is not supported yet.`, tok.line, tok.col);
+        }
+
+        // --- Reaffectation : identifier = Expression ---
+        if (tok.type === 'identifier' && peek(1).type === '=') {
+            next(); // identifier
+            next(); // '='
+            return { type: 'assignment', name: tok.value, isMut: true, isDeclaration: false, value: parseExpression(), line: tok.line, column: tok.col };
         }
 
         return parseExpression();
@@ -296,19 +330,32 @@ function parse(source) {
 
         if (tok.type === 'identifier') {
             if (peek().type === '(') {
-                next(); 
+                next();
                 const args = [];
-                while (peek().type !== ')') { 
-                    args.push(parseExpression()); 
-                    if (peek().type === ',') next(); 
+                while (peek().type !== ')') {
+                    args.push(parseExpression());
+                    if (peek().type === ',') next();
                 }
-                next(); 
-                return { type: 'function_call', name: tok.value, args, line: tok.line, column: tok.col };
+                next();
+                const callNode = { type: 'function_call', name: tok.value, args, line: tok.line, column: tok.col };
+                return parsePostfix(callNode);
             }
-            return { type: 'variable', name: tok.value, line: tok.line, column: tok.col };
+            const varNode = { type: 'variable', name: tok.value, line: tok.line, column: tok.col };
+            return parsePostfix(varNode);
         }
         
         throw new ParseError(`Unexpected token: '${tok.type}'.`, tok.line, tok.col, "Check for syntax errors.");
+    }
+
+    // Acces membre postfixe : user.age, user.name, etc.
+    // ('..' est un token distinct, donc les ranges 1..5 ne passent jamais ici)
+    function parsePostfix(node) {
+        while (peek().type === '.') {
+            const dotTok = next();
+            const keyTok = expect('identifier');
+            node = { type: 'table_access', target: node, key: keyTok.value, line: dotTok.line, column: dotTok.col };
+        }
+        return node;
     }
 
     const ast = [];
