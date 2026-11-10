@@ -1,0 +1,48 @@
+{
+  "name": "akari-lang",
+  "version": "0.6.2",
+  "description": "A safe, embeddable scripting language for your app. Sandboxed by default.",
+  "main": "index.js",
+  "bin": {
+    "akari": "bin/akari.js"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "std_akari/",
+    "index.js",
+    "backends/",
+    "README.md",
+    "LICENSE.md"
+  ],
+  "scripts": {
+    "test": "node tests.js",
+    "test:verbose": "node tests.js --verbose",
+    "test:conformance": "node tests/conformance/run_conformance.js",
+    "run": "node bin/akari.js",
+    "start": "node bin/akari.js examples/Hello.akari"
+  },
+  "keywords": [
+    "language",
+    "programming-language",
+    "scripting",
+    "embeddable",
+    "sandbox",
+    "compiler",
+    "transpiler",
+    "akari"
+  ],
+  "author": "HvK Okla",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://codeberg.org/HvK_Okla/Akari.git"
+  },
+  "homepage": "https://codeberg.org/HvK_Okla/Akari",
+  "bugs": {
+    "url": "https://codeberg.org/HvK_Okla/Akari/issues"
+  }
+}

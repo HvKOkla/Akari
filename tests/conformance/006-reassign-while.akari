@@ -1,0 +1,6 @@
+# Reassignment (mut) + while counter
+mut i = 0
+while i < 3:
+    say(i)
+    i = i + 1
+end

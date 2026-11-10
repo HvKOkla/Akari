@@ -1,0 +1,28 @@
+# ==========================================
+# Akari Example: Hello World & Basics
+# ==========================================
+
+say("Hello from Akari!")
+
+# Variables
+let name = "Developer"
+mut score = 0
+
+# Functions
+def addPoints(current, points):
+    return current + points
+end
+
+# Logic
+if name == "Developer":
+    say("Welcome, creator.")
+end
+
+# Loops
+for i in 1..4:
+    say("Point " + toText(i))
+end
+
+# The strict runtime in action
+score = addPoints(score, 10)
+say("Final score: " + toText(score))

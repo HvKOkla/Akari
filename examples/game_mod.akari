@@ -1,0 +1,28 @@
+# ==========================================
+# Akari Example: Game Modding
+# ==========================================
+# This script is meant to be run inside a host app.
+# The host exposes 'getHealth', 'damage', and 'say'.
+
+let playerName = "Hero"
+let health = getHealth()
+
+say("Mod loaded for " + playerName)
+
+# If the player is low on health, apply a buff
+if health < 20:
+    say("Emergency! Applying healing.")
+    damage(-50) # Negative damage heals
+else:
+    say("Player is healthy.")
+end
+
+# A simple logic loop
+mut rounds = 0
+while rounds < 3:
+    damage(10)
+    rounds = rounds + 1
+    say("Round " + toText(rounds) + " complete.")
+end
+
+say("Mod finished.")
