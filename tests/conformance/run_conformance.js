@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { run } = require('../../index.js');
 
-const dir = __dirname;
+const dir = "C:/Users/Quentin/Desktop/Akari/tests/conformance";
 const files = fs.readdirSync(dir).filter(f => f.endsWith('.akari'));
 
 let passed = 0;
