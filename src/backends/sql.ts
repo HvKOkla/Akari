@@ -18,20 +18,31 @@ export interface SQLContext {
     maxResults?: number;
 }
 
+const SAFE_IDENTIFIER = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+
 export function transpileToSQL(ast: Node[], context: SQLContext = { allowedTables: [], allowedColumns: {} }): string {
-    // ... (Garde tout le reste de ton code SQL tel quel, il est parfait)
     let tableName: string | null = null;
     let selectCols = "*";
     let whereClauses: string[] = [];
     const maxResults = context.maxResults || 1000;
 
+    if (context.allowedTables.length === 0) {
+        throw new SQLCompileError("SQL Security: No tables are allowed. Provide a whitelist in SQLContext.", undefined);
+    }
+
     function checkTable(table: string) {
-        if (context.allowedTables.length > 0 && !context.allowedTables.includes(table)) {
+        if (!SAFE_IDENTIFIER.test(table)) {
+            throw new SQLCompileError(`SQL Security: Invalid table name '${table}'.`, undefined);
+        }
+        if (!context.allowedTables.includes(table)) {
             throw new SQLCompileError(`SQL Security: Table '${table}' is not allowed.`, undefined);
         }
     }
 
     function checkColumn(table: string, column: string) {
+        if (!SAFE_IDENTIFIER.test(column)) {
+            throw new SQLCompileError(`SQL Security: Invalid column name '${column}'.`, undefined);
+        }
         if (context.allowedColumns[table] && !context.allowedColumns[table].includes(column) && column !== '*') {
             throw new SQLCompileError(`SQL Security: Column '${column}' on table '${table}' is not allowed.`, undefined);
         }
@@ -65,13 +76,16 @@ export function transpileToSQL(ast: Node[], context: SQLContext = { allowedTable
         if (node.type === 'return') {
             if (node.value && node.value.type === 'variable') {
                 selectCols = (node.value as any).name;
+                checkColumn(tableName!, selectCols);
             } else if (node.value && node.value.type === 'table_access') {
-                selectCols = `${(node.value as any).target.name}.${(node.value as any).key}`;
+                const targetTable = (node.value as any).target.name + "s";
+                const col = (node.value as any).key;
                 if (!tableName) {
-                    tableName = (node.value as any).target.name + "s";
+                    tableName = targetTable;
                     checkTable(tableName!);
                 }
-                checkColumn(tableName!, (node.value as any).key);
+                checkColumn(tableName!, col);
+                selectCols = `${(node.value as any).target.name}.${col}`;
             } else if (node.value) {
                 throw new SQLCompileError("SQL backend: 'return' only supports a column name or table.column.", node);
             }
@@ -138,7 +152,9 @@ export function transpileToSQL(ast: Node[], context: SQLContext = { allowedTable
         walk(stmt);
     }
 
-    if (!tableName) tableName = "my_table";
+    if (!tableName) {
+        throw new SQLCompileError("SQL backend: No table found in the query. Use 'for x in table_name'.", undefined);
+    }
 
     let sql = `SELECT ${selectCols} FROM ${tableName}`;
     if (whereClauses.length > 0) {

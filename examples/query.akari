@@ -1,3 +1,0 @@
-if user.age > 18:
-    return user.name
-end

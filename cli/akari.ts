@@ -92,7 +92,6 @@ function requireFile(file?: string) {
     console.error(color('red', `✖ File not found: ${file}`));
     process.exit(1);
   }
-  // SÉCURITÉ : Limite de taille de fichier (1 Mo max)
   const stats = fs.statSync(file);
   if (stats.size > 1024 * 1024) {
     console.error(color('red', '✖ File too large (max 1MB).'));
@@ -109,7 +108,6 @@ async function cmdRun(args: string[], opts: CliOptions) {
       const source = fs.readFileSync(file, 'utf-8');
       if (!opts.quiet) console.log(color('dim', `▶ ${file}\n`));
       
-      // SÉCURITÉ : On utilise le Sandbox avec le Worker et on autorise say
       const engine = new akari.Akari({ allow: ['say'], timeout: 1000 });
       await engine.run(source);
       
@@ -144,7 +142,13 @@ function cmdBuild(args: string[], opts: CliOptions) {
 
   if (opts.sql) {
     try {
-      const sql = akari.compileToSQL(source);
+      // SÉCURITÉ : On passe un contexte par défaut pour que le CLI puisse tester
+      const context = {
+          allowedTables: ['users', 'orders', 'products', 'my_table'],
+          allowedColumns: {},
+          maxResults: 1000
+      };
+      const sql = akari.compileToSQL(source, context);
       const outFile = opts.out || file.replace('.akari', '.sql');
       
       fs.writeFileSync(outFile, sql, 'utf-8');
