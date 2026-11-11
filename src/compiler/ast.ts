@@ -5,7 +5,6 @@ export interface Position {
     column: number;
 }
 
-// Tous les nœuds possibles de ton AST
 export type Node =
     | NumberNode
     | StringNode
@@ -25,7 +24,8 @@ export type Node =
     | BreakNode
     | ContinueNode
     | TableAccessNode
-    | TableLiteralNode; // <-- AJOUT ICI
+    | TableLiteralNode
+    | TableAssignmentNode; // <-- AJOUT ICI
 
 export interface NumberNode extends Position { type: 'number'; value: number; }
 export interface StringNode extends Position { type: 'string'; value: string; }
@@ -113,4 +113,11 @@ export interface TableAccessNode extends Position {
 export interface TableLiteralNode extends Position {
     type: 'table_literal';
     entries: { key: string; value: Node }[];
+}
+
+// NOUVEAU : L'assignation d'une propriété (hero.hp = 10)
+export interface TableAssignmentNode extends Position {
+    type: 'table_assignment';
+    target: TableAccessNode;
+    value: Node;
 }

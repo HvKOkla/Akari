@@ -2,9 +2,15 @@
 
 import * as fs from 'fs';
 import * as readline from 'readline';
+import * as path from 'path';
 import * as akari from '../index';
 
-const VERSION = '0.7.0';
+// Lecture dynamique de la version depuis package.json
+let VERSION = '1.0.0';
+try {
+  const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '../../package.json'), 'utf-8'));
+  VERSION = pkg.version;
+} catch (e) {}
 
 interface CliOptions {
   verbose: boolean;
@@ -35,36 +41,45 @@ function color(name: keyof typeof C, text: string): string {
   return C[name] + text + C.reset;
 }
 
+function printBanner() {
+  console.log(color('cyan', `
+    _    _         _ 
+   / \\  | | ____ _(_)
+  / _ \\ | |/ / _\` | |
+ / ___ \\|   < (_| | |
+/_/   \\_\\_|\\_\\__,_|_|
+`));
+}
+
 function printHelp() {
-  console.log(`
-${color('bold', color('cyan', 'Akari'))} ${color('dim', 'v' + VERSION)}
-${color('dim', 'A safe, embeddable scripting language.')}
+  printBanner();
+  console.log(`  ${color('bold', 'Akari')} ${color('dim', 'v' + VERSION)}`);
+  console.log(`  ${color('dim', 'Safe by default. Small by design.')}\n`);
 
-${color('bold', 'USAGE')}
-  akari <command> [options]
+  console.log(`${color('bold', 'USAGE')}`);
+  console.log(`  akari <command> [options]\n`);
 
-${color('bold', 'LANGUAGE')}
-  ${color('cyan', 'run')}     <file.akari>       Compile and execute a file
-  ${color('cyan', 'build')}   <file.akari>       Compile to JavaScript or SQL
-  ${color('cyan', 'check')}   <file.akari>       Check syntax only
-  ${color('cyan', 'exec')}    "<code>"           Execute a one-liner
-  ${color('cyan', 'repl')}                       Start an interactive REPL
+  console.log(`${color('bold', 'LANGUAGE')}`);
+  console.log(`  ${color('cyan', 'run')}     <file.akari>       Compile and execute a file`);
+  console.log(`  ${color('cyan', 'build')}   <file.akari>       Compile to JavaScript or SQL`);
+  console.log(`  ${color('cyan', 'check')}   <file.akari>       Check syntax only`);
+  console.log(`  ${color('cyan', 'exec')}    "<code>"           Execute a one-liner`);
+  console.log(`  ${color('cyan', 'repl')}                       Start an interactive REPL\n`);
 
-${color('bold', 'TOOLS')}
-  ${color('cyan', 'fmt')}     <file.akari>       Format code
-  ${color('cyan', 'doc')}     <file.akari>       Generate docs from comments
-  ${color('cyan', 'stats')}   <file.akari>       Code statistics
+  console.log(`${color('bold', 'TOOLS')}`);
+  console.log(`  ${color('cyan', 'fmt')}     <file.akari>       Format code`);
+  console.log(`  ${color('cyan', 'doc')}     <file.akari>       Generate docs from comments`);
+  console.log(`  ${color('cyan', 'stats')}   <file.akari>       Code statistics\n`);
 
-${color('bold', 'DEBUG')}
-  ${color('cyan', 'tokens')}  <file.akari>       Show tokens (debug)
-  ${color('cyan', 'ast')}     <file.akari>       Show AST (debug)
+  console.log(`${color('bold', 'DEBUG')}`);
+  console.log(`  ${color('cyan', 'tokens')}  <file.akari>       Show tokens (debug)`);
+  console.log(`  ${color('cyan', 'ast')}     <file.akari>       Show AST (debug)\n`);
 
-${color('bold', 'MISC')}
-  ${color('cyan', 'version')}                    Show version
-  ${color('cyan', 'help')}                       Show this help
+  console.log(`${color('bold', 'MISC')}`);
+  console.log(`  ${color('cyan', 'version')}                    Show version`);
+  console.log(`  ${color('cyan', 'help')}                       Show this help\n`);
 
-${color('dim', 'Learn more: https://github.com/HvKOkla/Akari')}
-`);
+  console.log(`${color('dim', 'Learn more: https://github.com/HvKOkla/Akari')}\n`);
 }
 
 function requireFile(file?: string) {
@@ -77,18 +92,26 @@ function requireFile(file?: string) {
     console.error(color('red', `✖ File not found: ${file}`));
     process.exit(1);
   }
+  // SÉCURITÉ : Limite de taille de fichier (1 Mo max)
+  const stats = fs.statSync(file);
+  if (stats.size > 1024 * 1024) {
+    console.error(color('red', '✖ File too large (max 1MB).'));
+    process.exit(1);
+  }
 }
 
-function cmdRun(args: string[], opts: CliOptions) {
+async function cmdRun(args: string[], opts: CliOptions) {
   const file = args[0];
   requireFile(file);
 
-  const execute = () => {
+  const execute = async () => {
     try {
       const source = fs.readFileSync(file, 'utf-8');
       if (!opts.quiet) console.log(color('dim', `▶ ${file}\n`));
       
-      akari.run(source);
+      // SÉCURITÉ : On utilise le Sandbox avec le Worker et on autorise say
+      const engine = new akari.Akari({ allow: ['say'], timeout: 1000 });
+      await engine.run(source);
       
       if (!opts.quiet) console.log(color('green', `\n✔ OK`));
     } catch (err) {
@@ -100,16 +123,16 @@ function cmdRun(args: string[], opts: CliOptions) {
 
   if (opts.watch) {
     console.log(color('cyan', `👁  Watch mode: ${file}`));
-    execute();
+    await execute();
     console.log(color('dim', `\nWaiting for changes... (Ctrl+C to quit)\n`));
-    fs.watchFile(file, { interval: 300 }, () => {
+    fs.watchFile(file, { interval: 300 }, async () => {
       console.clear();
       console.log(color('cyan', `👁  Change detected at ${new Date().toLocaleTimeString()}\n`));
-      execute();
+      await execute();
       console.log(color('dim', `\nWaiting for changes...\n`));
     });
   } else {
-    execute();
+    await execute();
   }
 }
 
@@ -167,7 +190,7 @@ function cmdCheck(args: string[], opts: CliOptions) {
   }
 }
 
-function cmdExec(args: string[], opts: CliOptions) {
+async function cmdExec(args: string[], opts: CliOptions) {
   const code = args.join(' ');
   if (!code.trim()) {
     console.error(color('red', '✖ Missing code.'));
@@ -176,7 +199,8 @@ function cmdExec(args: string[], opts: CliOptions) {
   }
 
   try {
-    akari.run(code);
+    const engine = new akari.Akari({ allow: ['say'], timeout: 1000 });
+    await engine.run(code);
   } catch (err) {
     const msg = getErrorMessage(err);
     console.error(color('red', msg));
@@ -185,17 +209,19 @@ function cmdExec(args: string[], opts: CliOptions) {
 }
 
 function cmdRepl() {
+  printBanner();
+  console.log(`  ${color('bold', 'Akari REPL')} ${color('dim', 'v' + VERSION)}`);
+  
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
     prompt: color('cyan', 'akari> ')
   });
 
-  console.log(color('bold', `Akari REPL v${VERSION}`));
   console.log(color('dim', 'Type .exit to quit, .help for help.\n'));
   rl.prompt();
 
-  rl.on('line', (line: string) => {
+  rl.on('line', async (line: string) => {
     const trimmed = line.trim();
     if (trimmed === '.exit' || trimmed === '.quit') {
       rl.close();
@@ -214,7 +240,8 @@ function cmdRepl() {
     }
 
     try {
-      akari.run(line);
+      const engine = new akari.Akari({ allow: ['say'], timeout: 1000 });
+      await engine.run(line);
     } catch (err) {
       const msg = getErrorMessage(err);
       console.error(color('red', msg));
@@ -399,7 +426,7 @@ function parseArgs(argv: string[]): { args: string[], opts: CliOptions } {
   return { args, opts };
 }
 
-function main() {
+async function main() {
   const argv = process.argv.slice(2);
 
   if (argv.length === 0) {
@@ -412,27 +439,28 @@ function main() {
   const { args, opts } = parseArgs(rest);
 
   switch (command) {
-    case 'run':     return cmdRun(args, opts);
-    case 'build':   return cmdBuild(args, opts); 
-    case 'check':   return cmdCheck(args, opts);
-    case 'exec':    return cmdExec(args, opts);
-    case 'repl':    return cmdRepl();
-    case 'fmt':     return cmdFmt(args, opts);
-    case 'tokens':  return cmdTokens(args, opts);
-    case 'ast':     return cmdAst(args, opts);
-    case 'doc':     return cmdDoc(args, opts);
-    case 'stats':   return cmdStats(args, opts);
-    case 'version': console.log(VERSION); return;
+    case 'run':     await cmdRun(args, opts); break;
+    case 'build':   cmdBuild(args, opts); break; 
+    case 'check':   cmdCheck(args, opts); break;
+    case 'exec':    await cmdExec(args, opts); break;
+    case 'repl':    cmdRepl(); break;
+    case 'fmt':     cmdFmt(args, opts); break;
+    case 'tokens':  cmdTokens(args, opts); break;
+    case 'ast':     cmdAst(args, opts); break;
+    case 'doc':     cmdDoc(args, opts); break;
+    case 'stats':   cmdStats(args, opts); break;
+    case 'version': console.log(VERSION); break;
     case 'help':
     case '--help':
-    case '-h':      printHelp(); return;
+    case '-h':      printHelp(); break;
     default: {
       if (command.endsWith('.akari')) {
-        return cmdRun([command, ...args], opts);
+        await cmdRun([command, ...args], opts);
+      } else {
+        console.error(color('red', `✖ Unknown command: ${command}`));
+        console.error(color('dim', `  Type 'akari help' for help.`));
+        process.exit(1);
       }
-      console.error(color('red', `✖ Unknown command: ${command}`));
-      console.error(color('dim', `  Type 'akari help' for help.`));
-      process.exit(1);
     }
   }
 }

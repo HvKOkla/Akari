@@ -37,14 +37,18 @@ export function parse(source: string): any[] {
     function parseStatement(): any {
         const tok = peek();
         
+        // 1. Déclarations (let / mut)
         if (tok.type === 'let' || tok.type === 'mut') {
+            const isMut = tok.type === 'mut';
             next();
             const nameTok = next();
             if (nameTok.type !== 'identifier') throw new ParseError(`Expected identifier, got '${nameTok.type}'.`, nameTok.line, nameTok.col);
             expect('=', "Did you forget the '=' sign?");
-            return { type: 'assignment', name: nameTok.value, isMut: tok.type === 'mut', isDeclaration: true, value: parseExpression(), line: tok.line, column: tok.col };
+            const value = parseExpression();
+            return { type: 'assignment', name: nameTok.value, isMut, isDeclaration: true, value, line: tok.line, column: tok.col };
         }
         
+        // 2. Import (bloqué)
         if (tok.type === 'import') {
             next();
             const pathTok = next();
@@ -52,6 +56,7 @@ export function parse(source: string): any[] {
             return { type: 'import', path: pathTok.value, line: tok.line, column: tok.col };
         }
 
+        // 3. Fonctions
         if (tok.type === 'def') {
             next();
             const nameTok = next();
@@ -75,6 +80,7 @@ export function parse(source: string): any[] {
             return { type: 'function_def', name: nameTok.value, params, body };
         }
 
+        // 4. Conditions
         if (tok.type === 'if') {
             next();
             const condition = parseExpression();
@@ -96,6 +102,7 @@ export function parse(source: string): any[] {
             return { type: 'if', condition, body, else: elseBody };
         }
 
+        // 5. Boucles For
         if (tok.type === 'for') {
             next();
             const nameTok = expect('identifier');
@@ -127,6 +134,7 @@ export function parse(source: string): any[] {
             }
         }
 
+        // 6. Boucles While
         if (tok.type === 'while') {
             next();
             const condition = parseExpression();
@@ -141,6 +149,7 @@ export function parse(source: string): any[] {
             return { type: 'while', condition, body };
         }
 
+        // 7. Return
         if (tok.type === 'return') {
             next();
             const nextTok = peek();
@@ -150,6 +159,7 @@ export function parse(source: string): any[] {
             return { type: 'return', value: parseExpression(), line: tok.line, column: tok.col };
         }
 
+        // 8. Stop / Skip
         if (tok.type === 'stop') {
             next();
             return { type: 'break', line: tok.line, column: tok.col };
@@ -159,21 +169,41 @@ export function parse(source: string): any[] {
             return { type: 'continue', line: tok.line, column: tok.col };
         }
 
+        // 9. Try / Catch (bloqué)
         if (tok.type === 'try' || tok.type === 'catch') {
             throw new ParseError(`'${tok.type}' is a reserved keyword but is not supported yet.`, tok.line, tok.col);
         }
 
-        if (tok.type === 'identifier' && peek(1).type === '=') {
-            next(); // identifier
-            next(); // '='
-            return { type: 'assignment', name: tok.value, isMut: true, isDeclaration: false, value: parseExpression(), line: tok.line, column: tok.col };
-        }
-
+        // 10. Assignations et appels de fonction
+        // On parse une expression. Si c'est une assignation, le parseExpression s'en occupe.
         return parseExpression();
     }
 
     function parseExpression(): any {
-        return parseBinary(0);
+        return parseAssignment();
+    }
+
+    // Nouveau : Gestion des assignations (x = 5 ou hero.hp = 5)
+    function parseAssignment(): any {
+        const expr = parseBinary(0);
+
+        if (peek().type === '=') {
+            const eqTok = next();
+            
+            // Si on a une variable à gauche
+            if (expr.type === 'variable') {
+                return { type: 'assignment', name: expr.name, isMut: true, isDeclaration: false, value: parseExpression(), line: eqTok.line, column: eqTok.col };
+            }
+            
+            // Si on a un accès à une propriété (hero.hp = 10)
+            if (expr.type === 'table_access') {
+                return { type: 'table_assignment', target: expr, value: parseExpression(), line: eqTok.line, column: eqTok.col };
+            }
+
+            throw new ParseError("Invalid assignment target.", eqTok.line, eqTok.col);
+        }
+
+        return expr;
     }
 
     const PRECEDENCE = {
@@ -217,7 +247,7 @@ export function parse(source: string): any[] {
     function parsePrimary(): any {
         const tok = next();
 
-        // --- NOUVEAU : GESTION DES TABLES { key: value } ---
+        // Tables
         if (tok.type === '{') {
             const entries = [];
             while (peek().type !== '}' && peek().type !== 'EOF') {
@@ -238,7 +268,6 @@ export function parse(source: string): any[] {
             expect('}', "Did you forget '}' to close the table?");
             return { type: 'table_literal', entries, line: tok.line, column: tok.col };
         }
-        // ---------------------------------------------------
 
         if (tok.type === 'number' || tok.type === 'string') return { type: tok.type, value: tok.value, line: tok.line, column: tok.col };
         if (tok.type === 'true') return { type: 'boolean', value: true };

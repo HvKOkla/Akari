@@ -105,17 +105,19 @@ export function transpile(ast: Node[], options: any = {}): string {
 }\n`;
             }
 
-            // --- NOUVEAU : GÉNÉRATION DES TABLES ---
             case 'table_literal': {
                 const entries = (node as any).entries.map((e: any) => 
                     `${JSON.stringify(e.key)}: ${transpileNode(e.value, true)}`
                 ).join(', ');
                 return `({ ${entries} })`;
             }
-            // --------------------------------------
 
             case 'table_access':
                 return `${transpileNode((node as any).target, true)}.${(node as any).key}`;
+
+            // NOUVEAU : Gestion de l'assignation d'une propriété
+            case 'table_assignment':
+                return `${transpileNode((node as any).target.target, true)}.${(node as any).target.key} = ${transpileNode((node as any).value, true)};\n`;
 
             case 'return':
                 return (node as any).value ? `return ${transpileNode((node as any).value, true)};\n` : 'return;\n';

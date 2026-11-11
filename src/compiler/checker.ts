@@ -84,7 +84,6 @@ export class Checker {
                     if (info.kind === 'let') {
                         throw new CheckerError(`Cannot assign to immutable variable '${node.name}'. Use 'mut' to declare it.`, node);
                     }
-                    // Type check strict à la réassignation (optionnel mais plus sûr)
                     if (info.type !== 'any' && valueType !== 'any' && info.type !== valueType) {
                          throw new CheckerError(`Cannot assign ${valueType} to variable '${node.name}' of type ${info.type}.`, node);
                     }
@@ -92,10 +91,20 @@ export class Checker {
                 }
             }
 
+            // NOUVEAU : Gestion de l'assignation d'une propriété (hero.hp = 10)
+            case 'table_assignment': {
+                const target = (node as any).target; // C'est un table_access
+                if (DANGEROUS_NAMES.has(target.key)) {
+                    throw new CheckerError(`Security violation: property '${target.key}' is forbidden.`, node);
+                }
+                this.checkNode(target.target);
+                this.checkNode((node as any).value);
+                return 'nothing';
+            }
+
             case 'table_literal': {
                 const literal = node as TableLiteralNode;
                 for (const entry of literal.entries) {
-                    // On vérifie que la clé n'est pas dangereuse (ex: { "constructor": ... })
                     if (DANGEROUS_NAMES.has(entry.key)) {
                          throw new CheckerError(`Security violation: property '${entry.key}' is forbidden in table.`, node);
                     }
@@ -192,7 +201,6 @@ export class Checker {
 
             case 'if': {
                 const condType = this.checkNode(node.condition);
-                // STRICT : La condition d'un if DOIT être un booléen (ou any)
                 if (condType !== 'boolean' && condType !== 'any') {
                     throw new CheckerError(`If condition must be a boolean, got ${condType}.`, node);
                 }
@@ -209,7 +217,6 @@ export class Checker {
 
             case 'while': {
                 const condType = this.checkNode(node.condition);
-                // STRICT : La condition d'un while DOIT être un booléen (ou any)
                 if (condType !== 'boolean' && condType !== 'any') {
                     throw new CheckerError(`While condition must be a boolean, got ${condType}.`, node);
                 }
