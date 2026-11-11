@@ -1,10 +1,10 @@
 {
   "name": "akari-lang",
-  "version": "0.7.0", ,
+  "version": "0.7.0",
   "description": "A safe, embeddable scripting language for your app. Sandboxed by default.",
   "main": "dist/index.js",
   "bin": {
-    "akari": "dist/bin/akari.js"
+    "akari": "dist/cli/akari.js"
   },
   "files": [
     "dist/",
@@ -18,9 +18,9 @@
     "test:conformance": "node dist/tests/conformance/run_conformance.js",
     "test:security": "node dist/tests/security.js",
     "test": "npm run test:unit && npm run test:conformance && npm run test:security",
-    "run": "node dist/bin/akari.js",
-    "start": "node dist/bin/akari.js examples/Hello.akari",
-    "akari": "node dist/bin/akari.js"
+    "run": "node dist/cli/akari.js",
+    "start": "node dist/cli/akari.js examples/Hello.akari",
+    "akari": "node dist/cli/akari.js"
   },
   "keywords": [
     "language",

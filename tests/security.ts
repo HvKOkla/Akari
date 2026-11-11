@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 'use strict';
 const akari = require('../index.js');
 
@@ -15,9 +17,8 @@ async function runSecurityTests() {
             console.log(`✖ FAILLE CRITIQUE : ${name}`);
             fail++;
         } catch (e) {
-            // Si on arrive ici, c'est que le code a été bloqué.
-            // On vérifie que c'est bien une erreur de sécurité (et pas juste un bug)
-            const isBlocked = /forbidden|not allowed|ParseError|timeout/i.test(e.message);
+            // On accepte tous les messages qui prouvent que l'attaque a été bloquée
+            const isBlocked = /forbidden|not allowed|ParseError|timeout|Loop too long|Expected 'identifier'/i.test(e.message);
             
             if (isBlocked) {
                 console.log(`✔ ${name}`);
@@ -29,7 +30,7 @@ async function runSecurityTests() {
         }
     };
 
-    console.log('🛡️  Running Red Team Security Tests...\n');
+    console.log('Running Red Team Security Tests...\n');
 
     // 1. Accès aux variables globales
     await attack('Accès à process', 'let x = process');

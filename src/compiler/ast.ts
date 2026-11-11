@@ -1,4 +1,4 @@
-// src/ast.ts
+// src/compiler/ast.ts
 
 export interface Position {
     line: number;
@@ -24,7 +24,8 @@ export type Node =
     | ReturnNode
     | BreakNode
     | ContinueNode
-    | TableAccessNode;
+    | TableAccessNode
+    | TableLiteralNode; // <-- AJOUT ICI
 
 export interface NumberNode extends Position { type: 'number'; value: number; }
 export interface StringNode extends Position { type: 'string'; value: string; }
@@ -107,4 +108,9 @@ export interface TableAccessNode extends Position {
     type: 'table_access';
     target: Node;
     key: string;
+}
+
+export interface TableLiteralNode extends Position {
+    type: 'table_literal';
+    entries: { key: string; value: Node }[];
 }

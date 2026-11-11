@@ -1,18 +1,24 @@
-const { parentPort, workerData } = require('worker_threads');
-const vm = require('vm');
+import { parentPort, workerData } from 'worker_threads';
+import * as vm from 'vm';
 
-const { code, allowedFunctions, timeout } = workerData;
+interface WorkerInput {
+    code: string;
+    allowedFunctions: Record<string, string>;
+    timeout: number;
+}
 
-const sandbox = Object.create(null);
+const { code, allowedFunctions, timeout } = workerData as WorkerInput;
+
+const sandbox: Record<string, any> = Object.create(null);
 sandbox.process = undefined;
 sandbox.require = undefined;
 sandbox.module = undefined;
 sandbox.globalThis = undefined;
 sandbox.window = undefined;
 
-const capturedLogs = [];
+const capturedLogs: string[] = [];
 const originalLog = console.log;
-console.log = (...args) => {
+console.log = (...args: any[]) => {
     capturedLogs.push(args.join(' '));
 };
 
@@ -32,9 +38,9 @@ try {
         timeout: timeout,
         displayErrors: false
     });
-    parentPort.postMessage({ success: true, result, logs: capturedLogs });
-} catch (error) {
-    parentPort.postMessage({ success: false, error: error.message, logs: capturedLogs });
+    if (parentPort) parentPort.postMessage({ success: true, result, logs: capturedLogs });
+} catch (error: any) {
+    if (parentPort) parentPort.postMessage({ success: false, error: error.message, logs: capturedLogs });
 } finally {
     console.log = originalLog;
 }

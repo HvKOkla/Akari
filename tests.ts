@@ -1,6 +1,9 @@
+// @ts-nocheck
+
 'use strict';
 
-const akari = require('./index.js');
+
+import * as akari from './index';
 
 let pass = 0, fail = 0;
 

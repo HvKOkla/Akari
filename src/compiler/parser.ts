@@ -1,105 +1,9 @@
 // @ts-nocheck
-/*
- * Akari Programming Language Engine — Frontend
- * (Lexer + Parser)
- * 
- * FROZEN: This file is part of the frozen engine.
- * TOLERANCE ZERO: Strict parsing, no silent failures.
- */
 
-import { Node, Position, NumberNode, StringNode, BinaryNode } from './ast';
+import { tokenize } from './lexer';
 
-// --- LEXER ---
-class LexerError extends Error {
-    constructor(msg, line, column, hint = '') {
-        super(msg);
-        this.name = 'LexerError';
-        this.line = line || '?';
-        this.column = column || '?';
-        this.hint = hint;
-    }
-    toString() {
-        let s = `❌ Lexical error: ${this.message}`;
-        s += `\n→ Line ${this.line}, column ${this.column}`;
-        if (this.hint) s += `\n→ Hint: ${this.hint}`;
-        return s;
-    }
-}
-
-const KEYWORDS = Object.freeze({
-    'import': 'import', 'def': 'def', 'end': 'end', 'return': 'return',
-    'if': 'if', 'else': 'else', 'for': 'for', 'in': 'in', 'while': 'while',
-    'stop': 'stop', 'skip': 'skip', 'try': 'try', 'catch': 'catch',
-    'true': 'true', 'false': 'false', 'nothing': 'nothing', 'let': 'let', 'mut': 'mut'
-});
-
-const TWO_CHAR_TOKENS = new Set(['==', '!=', '>=', '<=', '&&', '||', '..']);
-const SINGLE_CHAR_TOKENS = new Set([':', '(', ')', '=', ',', '+', '-', '*', '/', '%', '>', '<', '!', '[', ']', '.', '{', '}']);
-
-function tokenize(code) {
-    if (typeof code !== 'string') throw new LexerError('Source code must be a string.');
-    const tokens = [];
-    const length = code.length;
-    let i = 0, line = 1, col = 1;
-
-    function peek(offset = 0) { const idx = i + offset; return idx >= 0 && idx < length ? code[idx] : ''; }
-    function advance() { const ch = code[i]; i++; if (ch === '\n') { line++; col = 1; } else { col++; } return ch; }
-    function advanceN(n) { for (let k = 0; k < n; k++) advance(); }
-
-    function readNumber() {
-        const startLine = line, startCol = col;
-        let raw = '';
-        if (peek() === '0') {
-            const next = peek(1).toLowerCase();
-            if (next === 'x') { raw += advance() + advance(); while (/[0-9a-fA-F_]/.test(peek())) { if (peek() !== '_') raw += peek(); advance(); } return { type: 'number', value: parseInt(raw.slice(2), 16), line: startLine, col: startCol }; }
-            if (next === 'b') { raw += advance() + advance(); while (/[01_]/.test(peek())) { if (peek() !== '_') raw += peek(); advance(); } return { type: 'number', value: parseInt(raw.slice(2), 2), line: startLine, col: startCol }; }
-        }
-        while (/[0-9_]/.test(peek())) { if (peek() !== '_') raw += peek(); advance(); }
-        if (peek() === '.' && /[0-9]/.test(peek(1))) { raw += advance(); while (/[0-9_]/.test(peek())) { if (peek() !== '_') raw += peek(); advance(); } }
-        return { type: 'number', value: Number(raw), line: startLine, col: startCol };
-    }
-
-    function readIdentifier() {
-        const startLine = line, startCol = col;
-        let ident = '';
-        while (/[a-zA-Z0-9_]/.test(peek())) { ident += peek(); advance(); }
-        if (KEYWORDS[ident]) return { type: KEYWORDS[ident], value: ident, line: startLine, col: startCol };
-        return { type: 'identifier', value: ident, line: startLine, col: startCol };
-    }
-
-    function readString(quote) {
-        const startLine = line, startCol = col;
-        advance();
-        let str = '';
-        while (peek() !== quote) {
-            if (peek() === '') throw new LexerError('Unterminated string.', startLine, startCol);
-            if (peek() === '\\') { advance(); const esc = peek(); if (esc === 'n') str += '\n'; else if (esc === 't') str += '\t'; else str += esc; advance(); continue; }
-            str += peek(); advance();
-        }
-        advance();
-        return { type: 'string', value: str, line: startLine, col: startCol };
-    }
-
-    while (i < length) {
-        const ch = peek();
-        if (/[ \t\r\n]/.test(ch)) { advance(); continue; }
-        if (ch === '#') { while (peek() !== '\n' && peek() !== '') advance(); continue; }
-        if (/[0-9]/.test(ch)) { tokens.push(readNumber()); continue; }
-        if (/[a-zA-Z_]/.test(ch)) { tokens.push(readIdentifier()); continue; }
-        if (ch === '"' || ch === "'") { tokens.push(readString(ch)); continue; }
-        
-        const two = peek() + peek(1);
-        if (TWO_CHAR_TOKENS.has(two)) { advanceN(2); tokens.push({ type: two, value: two, line, col }); continue; }
-        if (SINGLE_CHAR_TOKENS.has(ch)) { advance(); tokens.push({ type: ch, value: ch, line, col }); continue; }
-        throw new LexerError(`Unknown character: '${ch}'`, line, col);
-    }
-    tokens.push({ type: 'EOF', value: 'EOF', line, col });
-    return Object.freeze(tokens); // FROZEN
-}
-
-// --- PARSER ---
-class ParseError extends Error {
-    constructor(msg, line, col) { super(msg); this.name = 'ParseError'; this.line = line; this.column = col; }
+export class ParseError extends Error {
+    constructor(msg: string, line: number, col: number) { super(msg); this.name = 'ParseError'; this.line = line; this.column = col; }
     toString() {
         return `❌ [ParseError] ${this.message}\n  --> Line ${this.line}, Column ${this.column}`;
     }
@@ -107,17 +11,17 @@ class ParseError extends Error {
 
 const MAX_NESTING_DEPTH = 500;
 
-function parse(source) {
+export function parse(source: string): any[] {
     const tokens = tokenize(source);
     let pos = 0;
     let depth = 0;
 
     function peek(offset = 0) { const idx = pos + offset; return idx < tokens.length ? tokens[idx] : tokens[tokens.length - 1]; }
     function next() { return tokens[pos++]; }
-    function expect(type, hint = '') {
+    function expect(type: string, hint = '') {
         const tok = peek();
         if (tok.type !== type) {
-            throw new ParseError(`Expected '${type}', got '${tok.type}'.`, tok.line, tok.col, hint);
+            throw new ParseError(`Expected '${type}', got '${tok.type}'.`, tok.line, tok.col);
         }
         return next();
     }
@@ -130,7 +34,7 @@ function parse(source) {
     }
     function exitBlock() { depth--; }
 
-    function parseStatement() {
+    function parseStatement(): any {
         const tok = peek();
         
         if (tok.type === 'let' || tok.type === 'mut') {
@@ -192,7 +96,6 @@ function parse(source) {
             return { type: 'if', condition, body, else: elseBody };
         }
 
-        // --- Gestion du for (numérique et collection) ---
         if (tok.type === 'for') {
             next();
             const nameTok = expect('identifier');
@@ -224,7 +127,6 @@ function parse(source) {
             }
         }
 
-        // --- Gestion du while ---
         if (tok.type === 'while') {
             next();
             const condition = parseExpression();
@@ -239,7 +141,6 @@ function parse(source) {
             return { type: 'while', condition, body };
         }
 
-        // --- Gestion du return ---
         if (tok.type === 'return') {
             next();
             const nextTok = peek();
@@ -249,7 +150,6 @@ function parse(source) {
             return { type: 'return', value: parseExpression(), line: tok.line, column: tok.col };
         }
 
-        // --- Gestion du stop / skip ---
         if (tok.type === 'stop') {
             next();
             return { type: 'break', line: tok.line, column: tok.col };
@@ -259,12 +159,10 @@ function parse(source) {
             return { type: 'continue', line: tok.line, column: tok.col };
         }
 
-        // Mots-cles reserves mais pas encore supportes : erreur claire.
         if (tok.type === 'try' || tok.type === 'catch') {
             throw new ParseError(`'${tok.type}' is a reserved keyword but is not supported yet.`, tok.line, tok.col);
         }
 
-        // --- Reaffectation : identifier = Expression ---
         if (tok.type === 'identifier' && peek(1).type === '=') {
             next(); // identifier
             next(); // '='
@@ -274,7 +172,7 @@ function parse(source) {
         return parseExpression();
     }
 
-    function parseExpression() {
+    function parseExpression(): any {
         return parseBinary(0);
     }
 
@@ -287,7 +185,7 @@ function parse(source) {
         '*': 6, '/': 6, '%': 6
     };
 
-    function parseBinary(minPrecedence) {
+    function parseBinary(minPrecedence: number): any {
         let left = parseUnary();
 
         while (true) {
@@ -306,7 +204,7 @@ function parse(source) {
         return left;
     }
 
-    function parseUnary() {
+    function parseUnary(): any {
         const tok = peek();
         if (tok.type === '-' || tok.type === '!') {
             next();
@@ -316,8 +214,32 @@ function parse(source) {
         return parsePrimary();
     }
 
-    function parsePrimary() {
+    function parsePrimary(): any {
         const tok = next();
+
+        // --- NOUVEAU : GESTION DES TABLES { key: value } ---
+        if (tok.type === '{') {
+            const entries = [];
+            while (peek().type !== '}' && peek().type !== 'EOF') {
+                const keyTok = next();
+                let key = '';
+                if (keyTok.type === 'string' || keyTok.type === 'identifier') {
+                    key = keyTok.value;
+                } else {
+                    throw new ParseError(`Expected key in table, got '${keyTok.type}'.`, keyTok.line, keyTok.col);
+                }
+                
+                expect(':', "Did you forget ':' in the table?");
+                const value = parseExpression();
+                entries.push({ key, value });
+                
+                if (peek().type === ',') next();
+            }
+            expect('}', "Did you forget '}' to close the table?");
+            return { type: 'table_literal', entries, line: tok.line, column: tok.col };
+        }
+        // ---------------------------------------------------
+
         if (tok.type === 'number' || tok.type === 'string') return { type: tok.type, value: tok.value, line: tok.line, column: tok.col };
         if (tok.type === 'true') return { type: 'boolean', value: true };
         if (tok.type === 'false') return { type: 'boolean', value: false };
@@ -347,12 +269,10 @@ function parse(source) {
             return parsePostfix(varNode);
         }
         
-        throw new ParseError(`Unexpected token: '${tok.type}'.`, tok.line, tok.col, "Check for syntax errors.");
+        throw new ParseError(`Unexpected token: '${tok.type}'.`, tok.line, tok.col);
     }
 
-    // Acces membre postfixe : user.age, user.name, etc.
-    // ('..' est un token distinct, donc les ranges 1..5 ne passent jamais ici)
-    function parsePostfix(node) {
+    function parsePostfix(node: any): any {
         while (peek().type === '.') {
             const dotTok = next();
             const keyTok = expect('identifier');
@@ -365,4 +285,3 @@ function parse(source) {
     while (peek().type !== 'EOF') ast.push(parseStatement());
     return Object.freeze(ast); 
 }
-module.exports = Object.freeze({ tokenize, parse, LexerError, ParseError });

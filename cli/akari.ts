@@ -1,21 +1,23 @@
 #!/usr/bin/env node
-/*
- * Akari CLI
- * Copyright (c) 2026 [HvK Okla]
- * Licensed under the Apache License, Version 2.0
- */
 
-'use strict';
+import * as fs from 'fs';
+import * as readline from 'readline';
+import * as akari from '../index';
 
-const fs = require('fs');
-const path = require('path');
-const akari = require('../index.js'); // <-- L'index à la racine
+const VERSION = '0.7.0';
 
-const VERSION = require('../package.json').version;
+interface CliOptions {
+  verbose: boolean;
+  quiet: boolean;
+  watch: boolean;
+  sql: boolean;
+  out: string | null;
+}
 
-// ---------------------------------------------------------------------
-// Colors
-// ---------------------------------------------------------------------
+function getErrorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  return String(err);
+}
 
 const C = {
   reset:  '\x1b[0m',
@@ -29,13 +31,9 @@ const C = {
   cyan:   '\x1b[36m'
 };
 
-function color(name, text) {
+function color(name: keyof typeof C, text: string): string {
   return C[name] + text + C.reset;
 }
-
-// ---------------------------------------------------------------------
-// Help
-// ---------------------------------------------------------------------
 
 function printHelp() {
   console.log(`
@@ -65,29 +63,11 @@ ${color('bold', 'MISC')}
   ${color('cyan', 'version')}                    Show version
   ${color('cyan', 'help')}                       Show this help
 
-${color('bold', 'OPTIONS')}
-  ${color('cyan', '-o, --out')} <file>           Output file for 'build'
-  ${color('cyan', '--sql')}                      Build to SQL instead of JS
-  ${color('cyan', '-w, --watch')}                Auto-reload on file change
-  ${color('cyan', '-v, --verbose')}              Verbose mode
-  ${color('cyan', '-q, --quiet')}                Quiet mode
-
-${color('bold', 'EXAMPLES')}
-  akari run main.akari
-  akari build main.akari -o main.js
-  akari build query.akari --sql -o query.sql
-  akari exec 'say(2 + 2)'
-  akari tokens main.akari
-
 ${color('dim', 'Learn more: https://github.com/HvKOkla/Akari')}
 `);
 }
 
-// ---------------------------------------------------------------------
-// Utilities
-// ---------------------------------------------------------------------
-
-function requireFile(file) {
+function requireFile(file?: string) {
   if (!file) {
     console.error(color('red', '✖ Missing file.'));
     console.error(color('dim', `  Usage: akari run <file.akari>`));
@@ -99,11 +79,7 @@ function requireFile(file) {
   }
 }
 
-// ---------------------------------------------------------------------
-// Commands
-// ---------------------------------------------------------------------
-
-function cmdRun(args, opts) {
+function cmdRun(args: string[], opts: CliOptions) {
   const file = args[0];
   requireFile(file);
 
@@ -116,7 +92,7 @@ function cmdRun(args, opts) {
       
       if (!opts.quiet) console.log(color('green', `\n✔ OK`));
     } catch (err) {
-      const msg = err.toString ? err.toString() : (err.message || String(err));
+      const msg = getErrorMessage(err);
       console.error(color('red', msg));
       process.exitCode = 1;
     }
@@ -137,14 +113,12 @@ function cmdRun(args, opts) {
   }
 }
 
-// --- NOUVEAU : cmdBuild ---
-function cmdBuild(args, opts) {
+function cmdBuild(args: string[], opts: CliOptions) {
   const file = args[0];
   requireFile(file);
 
   const source = fs.readFileSync(file, 'utf-8');
 
-  // Si l'option --sql est passée
   if (opts.sql) {
     try {
       const sql = akari.compileToSQL(source);
@@ -153,14 +127,13 @@ function cmdBuild(args, opts) {
       fs.writeFileSync(outFile, sql, 'utf-8');
       if (!opts.quiet) console.log(color('green', `✔ SQL written to ${outFile}`));
     } catch (err) {
-      const msg = err.toString ? err.toString() : (err.message || String(err));
+      const msg = getErrorMessage(err);
       console.error(color('red', msg));
       process.exit(1);
     }
     return;
   }
 
-  // Sinon, on compile en JavaScript
   try {
     const js = akari.compile(source);
     if (opts.out) {
@@ -170,13 +143,13 @@ function cmdBuild(args, opts) {
       console.log(js);
     }
   } catch (err) {
-    const msg = err.toString ? err.toString() : (err.message || String(err));
+    const msg = getErrorMessage(err);
     console.error(color('red', msg));
     process.exit(1);
   }
 }
 
-function cmdCheck(args, opts) {
+function cmdCheck(args: string[], opts: CliOptions) {
   const file = args[0];
   requireFile(file);
 
@@ -188,13 +161,13 @@ function cmdCheck(args, opts) {
     }
     process.exit(0);
   } catch (err) {
-    const msg = err.toString ? err.toString() : (err.message || String(err));
+    const msg = getErrorMessage(err);
     console.error(color('red', msg));
     process.exit(1);
   }
 }
 
-function cmdExec(args, opts) {
+function cmdExec(args: string[], opts: CliOptions) {
   const code = args.join(' ');
   if (!code.trim()) {
     console.error(color('red', '✖ Missing code.'));
@@ -205,14 +178,13 @@ function cmdExec(args, opts) {
   try {
     akari.run(code);
   } catch (err) {
-    const msg = err.toString ? err.toString() : (err.message || String(err));
+    const msg = getErrorMessage(err);
     console.error(color('red', msg));
     process.exit(1);
   }
 }
 
 function cmdRepl() {
-  const readline = require('readline');
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -223,7 +195,7 @@ function cmdRepl() {
   console.log(color('dim', 'Type .exit to quit, .help for help.\n'));
   rl.prompt();
 
-  rl.on('line', (line) => {
+  rl.on('line', (line: string) => {
     const trimmed = line.trim();
     if (trimmed === '.exit' || trimmed === '.quit') {
       rl.close();
@@ -244,7 +216,7 @@ function cmdRepl() {
     try {
       akari.run(line);
     } catch (err) {
-      const msg = err.toString ? err.toString() : (err.message || String(err));
+      const msg = getErrorMessage(err);
       console.error(color('red', msg));
     }
     rl.prompt();
@@ -256,7 +228,7 @@ function cmdRepl() {
   });
 }
 
-function cmdFmt(args, opts) {
+function cmdFmt(args: string[], opts: CliOptions) {
   const file = args[0];
   requireFile(file);
 
@@ -264,7 +236,7 @@ function cmdFmt(args, opts) {
     const source = fs.readFileSync(file, 'utf-8');
     const lines = source.split('\n');
     let depth = 0;
-    const out = [];
+    const out: string[] = [];
 
     for (let raw of lines) {
       const line = raw.trim();
@@ -282,13 +254,13 @@ function cmdFmt(args, opts) {
     fs.writeFileSync(file, formatted, 'utf-8');
     if (!opts.quiet) console.log(color('green', `✔ ${file} formatted`));
   } catch (err) {
-    const msg = err.toString ? err.toString() : (err.message || String(err));
+    const msg = getErrorMessage(err);
     console.error(color('red', msg));
     process.exit(1);
   }
 }
 
-function cmdTokens(args, opts) {
+function cmdTokens(args: string[], opts: CliOptions) {
   const file = args[0];
   requireFile(file);
 
@@ -297,19 +269,19 @@ function cmdTokens(args, opts) {
     const tokens = akari.tokenize(source);
     if (!opts.quiet) console.log(color('cyan', `Tokens (${tokens.length}):\n`));
     for (const tok of tokens) {
-      const pos = color('dim', `[${tok.line}:${tok.col}]`);
-      const type = color('yellow', tok.type.padEnd(12));
-      const value = JSON.stringify(tok.value);
+      const pos = color('dim', `[${(tok as any).line}:${(tok as any).col}]`);
+      const type = color('yellow', (tok as any).type.padEnd(12));
+      const value = JSON.stringify((tok as any).value);
       console.log(`  ${pos} ${type} ${value}`);
     }
   } catch (err) {
-    const msg = err.toString ? err.toString() : (err.message || String(err));
+    const msg = getErrorMessage(err);
     console.error(color('red', msg));
     process.exit(1);
   }
 }
 
-function cmdAst(args, opts) {
+function cmdAst(args: string[], opts: CliOptions) {
   const file = args[0];
   requireFile(file);
 
@@ -318,20 +290,20 @@ function cmdAst(args, opts) {
     const ast = akari.parse(source);
     console.log(JSON.stringify(ast, null, 2));
   } catch (err) {
-    const msg = err.toString ? err.toString() : (err.message || String(err));
+    const msg = getErrorMessage(err);
     console.error(color('red', msg));
     process.exit(1);
   }
 }
 
-function cmdDoc(args, opts) {
+function cmdDoc(args: string[], opts: CliOptions) {
   const file = args[0];
   requireFile(file);
 
   try {
     const source = fs.readFileSync(file, 'utf-8');
     const lines = source.split('\n');
-    const docs = [];
+    const docs: { comment: string, name: string, params: string }[] = [];
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
@@ -364,13 +336,13 @@ function cmdDoc(args, opts) {
       console.log('');
     }
   } catch (err) {
-    const msg = err.toString ? err.toString() : (err.message || String(err));
+    const msg = getErrorMessage(err);
     console.error(color('red', msg));
     process.exit(1);
   }
 }
 
-function cmdStats(args, opts) {
+function cmdStats(args: string[], opts: CliOptions) {
   const file = args[0];
   requireFile(file);
 
@@ -390,11 +362,11 @@ function cmdStats(args, opts) {
       else if (t.startsWith('#') || t.startsWith('//')) comments++;
     }
     for (const node of ast) {
-      if (node.type === 'function_def') functions++;
+      if ((node as any).type === 'function_def') functions++;
     }
 
     console.log(color('cyan', `📊 Stats: ${file}\n`));
-    console.log(`  Lines         : ${color('bold', lines.length)}`);
+    console.log(`  Lines         : ${color('bold', String(lines.length))}`);
     console.log(`  Blank lines   : ${blanks}`);
     console.log(`  Comments      : ${comments}`);
     console.log(`  Tokens        : ${tokens.length}`);
@@ -402,19 +374,15 @@ function cmdStats(args, opts) {
     console.log(`  Functions     : ${functions}`);
     console.log(`  Size          : ${(source.length / 1024).toFixed(2)} KB`);
   } catch (err) {
-    const msg = err.toString ? err.toString() : (err.message || String(err));
+    const msg = getErrorMessage(err);
     console.error(color('red', msg));
     process.exit(1);
   }
 }
 
-// ---------------------------------------------------------------------
-// Argument parsing
-// ---------------------------------------------------------------------
-
-function parseArgs(argv) {
-  const opts = { verbose: false, quiet: false, watch: false, sql: false, out: null };
-  const args = [];
+function parseArgs(argv: string[]): { args: string[], opts: CliOptions } {
+  const opts: CliOptions = { verbose: false, quiet: false, watch: false, sql: false, out: null };
+  const args: string[] = [];
 
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -430,10 +398,6 @@ function parseArgs(argv) {
 
   return { args, opts };
 }
-
-// ---------------------------------------------------------------------
-// Main
-// ---------------------------------------------------------------------
 
 function main() {
   const argv = process.argv.slice(2);

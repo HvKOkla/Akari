@@ -1,4 +1,4 @@
-import { Node, FunctionCallNode, TableAccessNode, VariableNode } from './ast';
+import { Node, FunctionCallNode, TableAccessNode, VariableNode, TableLiteralNode } from './ast';
 
 export class CheckerError extends Error {
     constructor(msg: string, node: Node) {
@@ -84,8 +84,24 @@ export class Checker {
                     if (info.kind === 'let') {
                         throw new CheckerError(`Cannot assign to immutable variable '${node.name}'. Use 'mut' to declare it.`, node);
                     }
+                    // Type check strict à la réassignation (optionnel mais plus sûr)
+                    if (info.type !== 'any' && valueType !== 'any' && info.type !== valueType) {
+                         throw new CheckerError(`Cannot assign ${valueType} to variable '${node.name}' of type ${info.type}.`, node);
+                    }
                     return valueType;
                 }
+            }
+
+            case 'table_literal': {
+                const literal = node as TableLiteralNode;
+                for (const entry of literal.entries) {
+                    // On vérifie que la clé n'est pas dangereuse (ex: { "constructor": ... })
+                    if (DANGEROUS_NAMES.has(entry.key)) {
+                         throw new CheckerError(`Security violation: property '${entry.key}' is forbidden in table.`, node);
+                    }
+                    this.checkNode(entry.value);
+                }
+                return 'any';
             }
 
             case 'binary': {
@@ -93,6 +109,7 @@ export class Checker {
                 const right = this.checkNode(node.right);
                 
                 if (node.operator === '+') {
+                    if (left === 'any' || right === 'any') return 'any';
                     if (left !== right) {
                         throw new CheckerError(`Cannot add ${left} and ${right}.`, node);
                     }
@@ -103,17 +120,24 @@ export class Checker {
                     return 'boolean';
                 }
                 
+                if (['&&', '||'].includes(node.operator)) {
+                    if ((left !== 'boolean' && left !== 'any') || (right !== 'boolean' && right !== 'any')) {
+                        throw new CheckerError(`Logical operator '${node.operator}' requires booleans, got ${left} and ${right}.`, node);
+                    }
+                    return 'boolean';
+                }
+                
                 return 'any';
             }
 
             case 'unary': {
                 const argType = this.checkNode(node.argument);
                 if (node.operator === '!') {
-                    if (argType !== 'boolean') throw new CheckerError(`Operator '!' requires a boolean, got ${argType}.`, node);
+                    if (argType !== 'boolean' && argType !== 'any') throw new CheckerError(`Operator '!' requires a boolean, got ${argType}.`, node);
                     return 'boolean';
                 }
                 if (node.operator === '-') {
-                    if (argType !== 'number') throw new CheckerError(`Operator '-' requires a number, got ${argType}.`, node);
+                    if (argType !== 'number' && argType !== 'any') throw new CheckerError(`Operator '-' requires a number, got ${argType}.`, node);
                     return 'number';
                 }
                 return 'any';
@@ -167,7 +191,12 @@ export class Checker {
             }
 
             case 'if': {
-                this.checkNode(node.condition);
+                const condType = this.checkNode(node.condition);
+                // STRICT : La condition d'un if DOIT être un booléen (ou any)
+                if (condType !== 'boolean' && condType !== 'any') {
+                    throw new CheckerError(`If condition must be a boolean, got ${condType}.`, node);
+                }
+
                 this.scopes.push(new Map());
                 for (const stmt of node.body) this.checkNode(stmt);
                 this.scopes.pop();
@@ -179,7 +208,12 @@ export class Checker {
             }
 
             case 'while': {
-                this.checkNode(node.condition);
+                const condType = this.checkNode(node.condition);
+                // STRICT : La condition d'un while DOIT être un booléen (ou any)
+                if (condType !== 'boolean' && condType !== 'any') {
+                    throw new CheckerError(`While condition must be a boolean, got ${condType}.`, node);
+                }
+
                 this.scopes.push(new Map());
                 for (const stmt of node.body) this.checkNode(stmt);
                 this.scopes.pop();
@@ -187,8 +221,13 @@ export class Checker {
             }
 
             case 'for': {
-                this.checkNode(node.start);
-                this.checkNode(node.end);
+                const startType = this.checkNode(node.start);
+                const endType = this.checkNode(node.end);
+                
+                if ((startType !== 'number' && startType !== 'any') || (endType !== 'number' && endType !== 'any')) {
+                     throw new CheckerError(`For loop bounds must be numbers, got ${startType} and ${endType}.`, node);
+                }
+
                 this.scopes.push(new Map());
                 this.getScope().set(node.varName, { kind: 'let', type: 'number' });
                 for (const stmt of node.body) this.checkNode(stmt);
