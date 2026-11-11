@@ -52,7 +52,6 @@ await akari.run(`
 
 ## Syntax
 
-```akari
 let x = 5          # immutable
 mut count = 0      # mutable
 
@@ -72,7 +71,6 @@ end
 for i in 1..5:
     say(i)
 end
-```
 
 ## Keywords
 
