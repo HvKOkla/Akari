@@ -21,7 +21,7 @@ If you want to add **user scripting** to your game, editor, or SaaS, you need so
 - **Data Structures** — native support for Tables (`{}`) to model game entities, configs, and more.
 - **100% TypeScript** — a modular compiler (Lexer, Parser, Checker, Transpiler) strictly typed.
 - **Red Team Tested** — 32 automated tests, including 8 hacker attacks that are successfully blocked.
-
+- **"SQL Backend** — Transpile safe scripts to SQL queries with built-in whitelisting."
 
 ## Embed in 10 lines
 
