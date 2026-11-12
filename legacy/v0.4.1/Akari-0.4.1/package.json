@@ -1,0 +1,44 @@
+{
+  "name": "akari-lang",
+  "version": "0.4.0",
+  "description": "A teaching programming language in 18 keywords. Simple, intuitive, powerful.",
+  "main": "src/index.js",
+  "bin": {
+    "akari": "bin/akari.js"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "std_akari/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node tests/run.js",
+    "test:verbose": "node tests/run.js --verbose",
+    "run": "node bin/akari.js",
+    "start": "node bin/akari.js examples/hello.akari"
+  },
+  "keywords": [
+    "language",
+    "programming-language",
+    "education",
+    "teaching",
+    "compiler",
+    "transpiler",
+    "akari"
+  ],
+  "author": "HvK Okla",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://codeberg.org/HvK_Okla/Akari.git"
+  },
+  "homepage": "https://codeberg.org/HvK_Okla/Akari",
+  "bugs": {
+    "url": "https://codeberg.org/HvK_Okla/Akari/issues"
+  }
+}

@@ -1,0 +1,97 @@
+(* ================================================================= *)
+(* Akari Language Specification — Formal Grammar (EBNF)              *)
+(* Version: 1.0 (Draft)                                              *)
+(* ================================================================= *)
+
+(* A program is a sequence of statements. *)
+Program         = { Statement } EOF ;
+
+(* A statement is a declaration, a control flow structure, or an expression. *)
+Statement       = Declaration
+                | FunctionDef
+                | IfStatement
+                | WhileLoop
+                | ForLoop
+                | ReturnStatement
+                | BreakStatement
+                | ContinueStatement
+                | ImportStatement
+                | ExpressionStatement ;
+
+(* --- Declarations --- *)
+Declaration     = ( "let" | "mut" ) Identifier "=" Expression ;
+
+(* --- Functions --- *)
+FunctionDef     = "def" Identifier "(" [ ParameterList ] ")" ":" 
+                  { Statement } 
+                  "end" ;
+
+ParameterList   = Identifier { "," Identifier } ;
+
+ReturnStatement = "return" [ Expression ] ;
+
+(* --- Control Flow --- *)
+IfStatement     = "if" Expression ":" 
+                  { Statement } 
+                  [ "else" ":" { Statement } ] 
+                  "end" ;
+
+WhileLoop       = "while" Expression ":" 
+                  { Statement } 
+                  "end" ;
+
+ForLoop         = "for" Identifier "in" Expression ".." Expression ":" 
+                  { Statement } 
+                  "end" ;
+
+BreakStatement    = "stop" ;
+ContinueStatement = "skip" ;
+
+ImportStatement = "import" String ;
+
+(* --- Expressions --- *)
+ExpressionStatement = Expression ;
+
+(* Operator precedence is handled by the parser (Pratt parser). *)
+Expression      = LogicalOr ;
+
+LogicalOr       = LogicalAnd { "||" LogicalAnd } ;
+LogicalAnd      = Equality { "&&" Equality } ;
+Equality        = Comparison { ( "==" | "!=" ) Comparison } ;
+Comparison      = Term { ( "<" | ">" | "<=" | ">=" ) Term } ;
+Term            = Factor { ( "+" | "-" ) Factor } ;
+Factor          = Unary { ( "*" | "/" | "%" ) Unary } ;
+Unary           = ( "-" | "!" ) Unary 
+                | Primary ;
+
+Primary         = Number
+                | String
+                | "true"
+                | "false"
+                | "nothing"
+                | Identifier
+                | FunctionCall
+                | "(" Expression ")" ;
+
+FunctionCall    = Identifier "(" [ ArgumentList ] ")" ;
+ArgumentList    = Expression { "," Expression } ;
+
+(* ================================================================= *)
+(* Lexical Rules                                                     *)
+(* ================================================================= *)
+
+(* Identifiers start with a letter or underscore, followed by letters, digits, or underscores. *)
+Identifier      = ( Letter | "_" ) { Letter | Digit | "_" } ;
+
+(* Numbers can be integers, decimals, or scientific notation. *)
+Number          = Digit { Digit } [ "." Digit { Digit } ] [ ( "e" | "E" ) [ "+" | "-" ] Digit { Digit } ] ;
+
+(* Strings are enclosed in double or single quotes, and support basic escapes. *)
+String          = '"' { Character } '"'
+                | "'" { Character } "'" ;
+
+(* --- Terminal characters --- *)
+Letter          = "a" | "b" | "c" | ... | "z" | "A" | "B" | "C" | ... | "Z" ;
+Digit           = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
+Character       = ? any printable character or escape sequence ? ;
+EOF             = ? end of file ? ;

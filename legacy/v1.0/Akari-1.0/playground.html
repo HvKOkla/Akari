@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:;">
+<title>Akari Playground</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:        #1e1e2e;
+    --bg-dark:   #181825;
+    --bg-darker: #11111b;
+    --border:    #313244;
+    --border-2:  #45475a;
+    --text:      #cdd6f4;
+    --text-dim:  #a6adc8;
+    --text-faint:#6c7086;
+    --blue:      #89b4fa;
+    --blue-2:    #b4befe;
+    --green:     #a6e3a1;
+    --red:       #f38ba8;
+    --yellow:    #f9e2af;
+    --peach:     #fab387;
+  }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    background: var(--bg);
+    color: var(--text);
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    gap: 6px;
+    padding: 6px;
+  }
+
+  /* ------------------ Header ------------------ */
+  header {
+    background: var(--bg-dark);
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 8px;
+    flex-wrap: wrap;
+    border: 1px solid var(--border);
+  }
+  header h1 {
+    font-size: 14px;
+    color: var(--blue);
+    font-weight: 700;
+    margin-right: 6px;
+    letter-spacing: 0.3px;
+  }
+  .toolbar {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .divider {
+    width: 1px;
+    height: 22px;
+    background: var(--border);
+    margin: 0 4px;
+  }
+  .status-pill {
+    font-size: 11px;
+    color: var(--text-faint);
+    margin-left: auto;
+    padding: 5px 12px;
+    border-radius: 999px;
+    background: var(--bg-darker);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.25s;
+  }
+  .status-pill::before {
+    content: '';
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--text-faint);
+    display: inline-block;
+  }
+  .status-pill.ok    { color: var(--green); border-color: rgba(166,227,161,0.3); background: rgba(166,227,161,0.08); }
+  .status-pill.ok::before    { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .status-pill.err   { color: var(--red); border-color: rgba(243,139,168,0.3); background: rgba(243,139,168,0.08); }
+  .status-pill.err::before   { background: var(--red); }
+  .status-pill.busy  { color: var(--yellow); border-color: rgba(249,226,175,0.3); background: rgba(249,226,175,0.08); }
+  .status-pill.busy::before  { background: var(--yellow); animation: pulse 1s infinite; }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.35; }
+  }
+
+  /* ------------------ Boutons ------------------ */
+  button {
+    background: var(--border);
+    color: var(--text);
+    border: 1px solid var(--border-2);
+    padding: 7px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    transition: all 0.15s;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  button:hover:not(:disabled) {
+    background: var(--border-2);
+    transform: translateY(-1px);
+  }
+  button:active:not(:disabled) { transform: translateY(0); }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
+  button.primary {
+    background: var(--blue);
+    color: var(--bg-dark);
+    border-color: var(--blue);
+    font-weight: 700;
+  }
+  button.primary:hover:not(:disabled) { background: var(--blue-2); }
+  button.ghost {
+    background: transparent;
+    border-color: var(--border);
+  }
+  button.ghost:hover:not(:disabled) {
+    background: var(--bg-darker);
+    border-color: var(--border-2);
+  }
+  button.danger { color: var(--red); }
+  button.danger:hover:not(:disabled) {
+    background: rgba(243,139,168,0.12);
+    border-color: var(--red);
+  }
+  .kbd {
+    font-size: 10px;
+    color: var(--text-faint);
+    background: var(--bg-darker);
+    padding: 1px 5px;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+    font-weight: 400;
+  }
+
+  /* ------------------ Split ------------------ */
+  .split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    min-height: 0;
+  }
+  .panel {
+    background: var(--bg-dark);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+    border: 1px solid var(--border);
+  }
+  .panel-header {
+    background: var(--bg-darker);
+    padding: 8px 14px;
+    font-size: 10px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    user-select: none;
+    font-weight: 600;
+  }
+  .panel-header .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+  }
+  .dot.red    { background: var(--red); }
+  .dot.yellow { background: var(--yellow); }
+  .dot.green  { background: var(--green); }
+  .panel-header .title {
+    color: var(--text);
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+
+  /* ------------------ Éditeur ------------------ */
+  .editor-wrap {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+    position: relative;
+  }
+  #lineNumbers {
+    background: var(--bg-darker);
+    color: var(--text-faint);
+    padding: 12px 10px 12px 12px;
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1.55;
+    text-align: right;
+    user-select: none;
+    overflow: hidden;
+    border-right: 1px solid var(--border);
+    min-width: 48px;
+    opacity: 0.65;
+  }
+  textarea, pre {
+    background: var(--bg);
+    color: var(--text);
+    border: none;
+    outline: none;
+    resize: none;
+    padding: 12px 14px;
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1.55;
+    overflow: auto;
+  }
+  textarea {
+    flex: 1;
+    tab-size: 4;
+    white-space: pre;
+    overflow-wrap: normal;
+    caret-color: var(--blue);
+  }
+  textarea::selection { background: rgba(137,180,250,0.28); }
+  pre {
+    flex: 1;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    margin: 0;
+  }
+  pre.info    { color: var(--text-dim); }
+  pre.success { color: var(--green); }
+  pre.error   { color: var(--red); }
+  pre.warning { color: var(--yellow); }
+
+  /* ------------------ Messages d'erreur structurés ------------------ */
+  .err-block {
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .err-title {
+    color: var(--red);
+    font-weight: 700;
+    font-size: 14px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .err-section {
+    margin: 12px 0;
+    padding: 10px 14px;
+    border-left: 3px solid var(--peach);
+    background: rgba(250,179,135,0.05);
+    border-radius: 0 4px 4px 0;
+  }
+  .err-section.hint {
+    border-left-color: var(--blue);
+    background: rgba(137,180,250,0.05);
+  }
+  .err-section .label {
+    color: var(--text-dim);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .err-section code {
+    background: var(--bg-darker);
+    color: var(--peach);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: inherit;
+    font-size: 12px;
+  }
+  .err-steps {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .err-steps li {
+    padding: 4px 0;
+    color: var(--text);
+    font-size: 12px;
+  }
+  .err-steps li::before {
+    content: '→';
+    color: var(--blue);
+    margin-right: 8px;
+    font-weight: 700;
+  }
+
+  /* ------------------ Footer ------------------ */
+  .footer {
+    background: var(--bg-dark);
+    padding: 8px 14px;
+    font-size: 10px;
+    color: var(--text-faint);
+    border-radius: 8px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    border: 1px solid var(--border);
+  }
+  .footer .spacer { margin-left: auto; }
+  .footer .version {
+    color: var(--blue);
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+  .footer .shortcut {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .footer .shortcut kbd {
+    background: var(--border);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: inherit;
+    font-size: 10px;
+    color: var(--text);
+    border: 1px solid var(--border-2);
+    font-weight: 600;
+  }
+
+  /* ------------------ Responsive ------------------ */
+  @media (max-width: 900px) {
+    .split { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
+    header h1 { font-size: 12px; }
+    .toolbar button { padding: 6px 10px; font-size: 11px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>✨ Akari Playground</h1>
+  <div class="toolbar">
+    <button class="primary" id="runBtn" title="Exécuter (Ctrl+Entrée)">
+      ▶ Run <span class="kbd">Ctrl↵</span>
+    </button>
+    <button class="ghost" id="formatBtn" title="Formater le code (Alt+Maj+F)">
+      ⌨ Formater
+    </button>
+    <div class="divider"></div>
+    <button class="ghost" id="saveBtn" title="Exporter en .akari (Ctrl+S)">
+      💾 Exporter
+    </button>
+    <button class="ghost" id="openBtn" title="Importer un .akari (Ctrl+O)">
+      📂 Importer
+    </button>
+    <div class="divider"></div>
+    <button class="ghost danger" id="clearBtn" title="Effacer la console (Ctrl+L)">
+      🗑 Clear
+    </button>
+  </div>
+  <input type="file" id="fileInput" accept=".akari,.txt" style="display:none">
+  <span class="status-pill" id="status">Chargement…</span>
+</header>
+
+<div class="split">
+  <div class="panel">
+    <div class="panel-header">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+      <span class="title" style="margin-left: 8px;">main.akari</span>
+      <span id="dirty" style="margin-left:auto; color: var(--yellow); display:none;" title="Non sauvegardé">●</span>
+    </div>
+    <div class="editor-wrap">
+      <div id="lineNumbers">1</div>
+      <textarea id="editor" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="# Écris ton code Akari ici…
+
+say(&quot;Bonjour !&quot;)"></textarea>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <span style="color: var(--green);">▶</span>
+      <span class="title">Console</span>
+      <span id="execTime" style="margin-left:auto; color: var(--text-faint); font-weight: 400; text-transform: none; letter-spacing: 0;"></span>
+    </div>
+    <pre id="output" class="info">Prêt. Clique sur ▶ Run ou appuie sur Ctrl+Entrée pour exécuter ton code.</pre>
+  </div>
+</div>
+
+<div class="footer">
+  <span class="version">Akari v0.5</span>
+  <span class="shortcut"><kbd>Ctrl</kbd><kbd>↵</kbd> Run</span>
+  <span class="shortcut"><kbd>Ctrl</kbd><kbd>S</kbd> Save</span>
+  <span class="shortcut"><kbd>Ctrl</kbd><kbd>O</kbd> Open</span>
+  <span class="shortcut"><kbd>Ctrl</kbd><kbd>L</kbd> Clear</span>
+  <span class="shortcut"><kbd>Tab</kbd> Indent</span>
+  <span class="spacer" id="engineInfo">Moteur : —</span>
+</div>
+
+<script>
+'use strict';
+
+// ============================================================
+// Akari Playground v0.5
+// ============================================================
+
+const FILES = ['lexer.js', 'Parser.js', 'transpiler.js', 'bundler.browser.js'];
+const DEFAULT_CODE = `# Bienvenue dans Akari !
+# Ctrl+Entrée pour exécuter
+
+let x = 5
+mut count = 0
+
+def square(n):
+    return n * n
+end
+
+say("Bonjour Akari !")
+say(square(x))
+
+for i in 1..3:
+    count = count + i
+end
+
+say("Somme 1..3 = " + toText(count))
+
+# Test indexation
+mut v = float32(3)
+v[0] = 10
+v[1] = 20
+v[2] = 30
+say("v[0] = " + toText(v[0]))`;
+
+const STORAGE_KEY = 'akari.playground.code';
+const EXEC_TIMEOUT_MS = 10000;
+const MAX_IMPORT_SIZE = 5 * 1024 * 1024;
+
+// --- DOM ---
+const $ = (id) => document.getElementById(id);
+const statusEl     = $('status');
+const outputEl     = $('output');
+const editorEl     = $('editor');
+const lineNumEl    = $('lineNumbers');
+const dirtyEl      = $('dirty');
+const execTimeEl   = $('execTime');
+const engineInfoEl = $('engineInfo');
+
+// --- État ---
+let engine = null;
+let isRunning = false;
+
+// ============================================================
+// Helpers UI
+// ============================================================
+
+function setStatus(text, cls = '') {
+  statusEl.textContent = text;
+  statusEl.className = 'status-pill ' + cls;
+}
+
+function printRaw(text, cls = 'info') {
+  outputEl.textContent = text;
+  outputEl.className = cls;
+}
+
+/**
+ * Affiche un message d'erreur structuré et lisible.
+ * Utilise textContent pour éviter toute injection HTML.
+ */
+function printError({ title, detail, section, steps }) {
+  // On construit le texte brut (pas de HTML → pas d'injection possible)
+  let s = '✖ ' + title + '\n';
+
+  if (detail) {
+    s += '\n' + detail + '\n';
+  }
+
+  if (section) {
+    s += '\n' + section.label + '\n';
+    s += '  ' + section.content + '\n';
+  }
+
+  if (steps && steps.length > 0) {
+    s += '\nComment corriger :\n';
+    steps.forEach(step => {
+      s += '  → ' + step + '\n';
+    });
+  }
+
+  outputEl.textContent = s;
+  outputEl.className = 'error';
+}
+
+function markDirty(isDirty) {
+  dirtyEl.style.display = isDirty ? 'inline' : 'none';
+}
+
+// ============================================================
+// Numéros de ligne
+// ============================================================
+
+function updateLineNumbers() {
+  const lines = editorEl.value.split('\n').length;
+  let s = '';
+  for (let i = 1; i <= lines; i++) s += i + '\n';
+  lineNumEl.textContent = s;
+  syncScroll();
+}
+
+function syncScroll() {
+  lineNumEl.scrollTop = editorEl.scrollTop;
+}
+
+editorEl.addEventListener('scroll', syncScroll);
+editorEl.addEventListener('input', () => {
+  updateLineNumbers();
+  markDirty(true);
+  saveToStorage();
+  autoIndent();
+});
+
+// ============================================================
+// Auto-indentation
+// ============================================================
+
+function autoIndent() {
+  const pos = editorEl.selectionStart;
+  const value = editorEl.value;
+  if (value[pos - 1] === '\n') {
+    const lines = value.substring(0, pos - 1).split('\n');
+    const prevLine = lines[lines.length - 1];
+    const match = prevLine.match(/^(\s*)/);
+    const indent = match ? match[1] : '';
+    const extra = /:\s*$/.test(prevLine) ? '    ' : '';
+    if (indent || extra) {
+      const insert = indent + extra;
+      editorEl.value = value.substring(0, pos) + insert + value.substring(pos);
+      editorEl.selectionStart = editorEl.selectionEnd = pos + insert.length;
+    }
+  }
+}
+
+// ============================================================
+// Raccourcis clavier
+// ============================================================
+
+document.addEventListener('keydown', (e) => {
+  const ctrl = e.ctrlKey || e.metaKey;
+
+  if (ctrl && e.key === 'Enter') { e.preventDefault(); runCode(); return; }
+  if (ctrl && e.key === 's')     { e.preventDefault(); exportFile(); return; }
+  if (ctrl && e.key === 'o')     { e.preventDefault(); $('fileInput').click(); return; }
+  if (ctrl && e.key === 'l')     { e.preventDefault(); clearConsole(); return; }
+});
+
+editorEl.addEventListener('keydown', (e) => {
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const start = editorEl.selectionStart;
+    const end = editorEl.selectionEnd;
+    if (start === end) {
+      editorEl.value = editorEl.value.substring(0, start) + '    ' + editorEl.value.substring(end);
+      editorEl.selectionStart = editorEl.selectionEnd = start + 4;
+    } else {
+      const lines = editorEl.value.substring(start, end).split('\n');
+      const newText = lines.map(l => '    ' + l).join('\n');
+      editorEl.value = editorEl.value.substring(0, start) + newText + editorEl.value.substring(end);
+      editorEl.selectionStart = start;
+      editorEl.selectionEnd = start + newText.length;
+    }
+    updateLineNumbers();
+  }
+});
+
+// ============================================================
+// Persistance
+// ============================================================
+
+function saveToStorage() {
+  try { localStorage.setItem(STORAGE_KEY, editorEl.value); } catch (_) {}
+}
+
+function loadFromStorage() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved && saved.length > 0) return saved;
+  } catch (_) {}
+  return DEFAULT_CODE;
+}
+
+// ============================================================
+// Chargement du moteur
+// ============================================================
+
+async function loadEngine() {
+  // 🔒 Vérification AVANT toute chose : est-on en file:// ?
+  if (window.location.protocol === 'file:') {
+    engine = null;
+    setStatus('Erreur : mauvais mode d\'ouverture', 'err');
+    engineInfoEl.textContent = 'Moteur : ✗';
+
+    printError({
+      title: 'Impossible de charger le moteur Akari',
+      detail: 'Tu as ouvert ce fichier en double-clic (protocole file://).\nLes navigateurs modernes bloquent la lecture des fichiers voisins dans ce mode.',
+      section: {
+        label: 'Ce qu\'il faut faire',
+        content: 'Lance un petit serveur local pour servir les fichiers via http://'
+      },
+      steps: [
+        'Ouvre un terminal (Windows + R → cmd → Entrée)',
+        'Tape : cd C:\\Users\\Quentin\\Desktop\\travail\\Akari',
+        'Puis : python -m http.server 8000',
+        'Dans Chrome, va sur : http://localhost:8000/playground.html',
+        'Ne double-clique PLUS JAMAIS sur playground.html'
+      ]
+    });
+    return;
+  }
+
+  try {
+    const loaded = {};
+
+    for (const f of FILES) {
+      let res;
+      try {
+        res = await fetch('src/' + f, { cache: 'no-cache' });
+      } catch (netErr) {
+        throw new Error(
+          `Impossible de lire src/${f}.\n` +
+          `Le serveur local est-il bien lancé ? (python -m http.server 8000)`
+        );
+      }
+
+      if (res.status === 404) {
+        throw new Error(
+          `Fichier manquant : src/${f}\n` +
+          `Vérifie qu'il existe bien dans le dossier src/.`
+        );
+      }
+      if (!res.ok) {
+        throw new Error(
+          `src/${f} → erreur HTTP ${res.status}\n` +
+          `Vérifie que le fichier est accessible.`
+        );
+      }
+
+      const code = await res.text();
+
+      const moduleObj = { exports: {} };
+      const fn = new Function(
+        'module', 'exports', 'require', 'window',
+        'fetch', 'URL', 'Blob', 'console',
+        code
+      );
+      fn(
+        moduleObj, moduleObj.exports, () => ({}),
+        window,
+        window.fetch.bind(window),
+        window.URL, window.Blob, console
+      );
+
+      loaded[f] = moduleObj.exports || {};
+    }
+
+    // Vérifie les exports attendus
+    const checks = [
+      { file: 'lexer.js',            key: 'tokenize',              label: 'tokenize()' },
+      { file: 'Parser.js',           key: 'parse',                 label: 'parse()' },
+      { file: 'transpiler.js',       key: 'transpile',             label: 'transpile()' },
+      { file: 'bundler.browser.js',  key: 'setupBrowserBundler',   label: 'setupBrowserBundler()' },
+    ];
+    for (const c of checks) {
+      if (typeof loaded[c.file][c.key] !== 'function') {
+        throw new Error(
+          `${c.file} n'expose pas ${c.label}.\n` +
+          `Vérifie la ligne "module.exports = { ... }" ou "window.${c.key} = ...".`
+        );
+      }
+    }
+
+    loaded['bundler.browser.js'].setupBrowserBundler({
+      tokenize:  loaded['lexer.js'].tokenize,
+      parse:     loaded['Parser.js'].parse,
+      transpile: loaded['transpiler.js'].transpile
+    });
+
+    engine = {
+      tokenize:  loaded['lexer.js'].tokenize,
+      parse:     loaded['Parser.js'].parse,
+      transpile: loaded['transpiler.js'].transpile,
+      extractImports:     loaded['bundler.browser.js'].extractImports,
+      buildCandidateURLs: loaded['bundler.browser.js'].buildCandidateURLs
+    };
+
+    engineInfoEl.textContent = 'Moteur : prêt ✓';
+    setStatus('Prêt', 'ok');
+
+  } catch (err) {
+    engine = null;
+    setStatus('Erreur de chargement', 'err');
+    engineInfoEl.textContent = 'Moteur : ✗';
+
+    printError({
+      title: 'Impossible de charger le moteur Akari',
+      detail: err.message,
+      section: {
+        label: 'Vérifications à faire',
+        content: 'Serveur local lancé · 4 fichiers présents dans src/ · URL http://localhost:8000'
+      },
+      steps: [
+        'Vérifie que le serveur tourne (terminal ouvert avec "python -m http.server 8000")',
+        'Vérifie l\'URL : http://localhost:8000/playground.html',
+        'Vérifie que src/ contient : lexer.js, Parser.js, transpiler.js, bundler.browser.js',
+        'Regarde la Console développeur (F12) pour plus de détails'
+      ]
+    });
+  }
+}
+
+// ============================================================
+// Imports (sécurisé)
+// ============================================================
+
+async function inlineImportResolve(source) {
+  const imports = engine.extractImports(source, '<editor>');
+  if (imports.length === 0) return source;
+
+  const projectBase = new URL('main.akari', window.location.href).href;
+  const seen = new Set();
+  let merged = '';
+
+  async function loadOne(importName, baseURL) {
+    if (importName.startsWith('./') || importName.startsWith('../')) {
+      throw new Error(
+        `Import relatif '${importName}' non supporté dans le playground.\n` +
+        `Utilise un import absolu, ex: "maths/base" (cherché dans std_akari/).`
+      );
+    }
+    if (/^https?:\/\//i.test(importName)) {
+      throw new Error(`Import externe '${importName}' interdit (sécurité).`);
+    }
+
+    const candidates = engine.buildCandidateURLs(importName, baseURL);
+
+    for (const url of candidates) {
+      const parsed = new URL(url);
+      if (parsed.origin !== window.location.origin) continue;
+
+      try {
+        const res = await fetch(url, { cache: 'no-cache' });
+        if (!res.ok) continue;
+        const text = await res.text();
+        if (text.length > MAX_IMPORT_SIZE) {
+          throw new Error(`Module '${importName}' trop volumineux.`);
+        }
+        if (seen.has(url)) return '';
+        seen.add(url);
+
+        const subImports = engine.extractImports(text, url);
+        let subMerged = '';
+        for (const si of subImports) subMerged += await loadOne(si.path, url);
+
+        const lines = text.split('\n');
+        const importLines = new Set(subImports.map(i => i.line));
+        const cleaned = lines.filter((_, i) => !importLines.has(i + 1)).join('\n');
+        return subMerged + '\n' + cleaned + '\n';
+      } catch (_) {}
+    }
+
+    throw new Error(
+      `Module '${importName}' introuvable.\n` +
+      `Cherché dans : std_akari/${importName}.akari et std_akari/${importName}/index.akari`
+    );
+  }
+
+  for (const imp of imports) merged += await loadOne(imp.path, projectBase);
+
+  const lines = source.split('\n');
+  const importLines = new Set(imports.map(i => i.line));
+  const cleaned = lines.filter((_, i) => !importLines.has(i + 1)).join('\n');
+  return merged + '\n' + cleaned;
+}
+
+// ============================================================
+// Exécution
+// ============================================================
+
+async function runCode() {
+  if (isRunning) return;
+  if (!engine) {
+    printError({
+      title: 'Le moteur Akari n\'est pas chargé',
+      detail: 'Le moteur n\'a pas pu démarrer (voir le message précédent).',
+      steps: [
+        'Vérifie que le serveur local tourne',
+        'Recharge la page (F5)',
+        'Ouvre la Console développeur (F12) pour plus de détails'
+      ]
+    });
+    return;
+  }
+
+  const source = editorEl.value;
+  if (!source.trim()) {
+    printRaw('⚠ Aucun code à exécuter. Écris quelque chose d\'abord.', 'warning');
+    return;
+  }
+
+  isRunning = true;
+  $('runBtn').disabled = true;
+  setStatus('Compilation…', 'busy');
+  printRaw('Compilation en cours…', 'info');
+  execTimeEl.textContent = '';
+
+  const t0 = performance.now();
+
+  try {
+    const hasImport = /^\s*import\s+["']/m.test(source);
+    const resolvedSource = hasImport ? await inlineImportResolve(source) : source;
+
+    const ast = engine.parse(resolvedSource);
+    const js = engine.transpile(ast);
+    const tCompile = performance.now() - t0;
+
+    // Exécution isolée
+    const captured = [];
+    const origLog = console.log;
+    const origWarn = console.warn;
+    const origError = console.error;
+
+    const push = (prefix, args) => {
+      captured.push(prefix + args.map(a => {
+        if (a === undefined) return 'nothing';
+        if (a === null) return 'null';
+        if (ArrayBuffer.isView(a)) return `[buffer ${a.constructor.name}(${a.length})]`;
+        if (a instanceof ArrayBuffer) return `[ArrayBuffer(${a.byteLength})]`;
+        try { return String(a); } catch (_) { return '[unprintable]'; }
+      }).join(' '));
+    };
+
+    console.log   = (...a) => push('', a);
+    console.warn  = (...a) => push('⚠ ', a);
+    console.error = (...a) => push('✖ ', a);
+
+    let timedOut = false;
+    const timeoutId = setTimeout(() => { timedOut = true; }, EXEC_TIMEOUT_MS);
+
+    try {
+      const runner = new Function('"use strict";\n' + js);
+      runner();
+      await new Promise(r => setTimeout(r, 0));
+      if (timedOut) {
+        throw new Error(`Exécution trop longue (> ${EXEC_TIMEOUT_MS / 1000}s). Boucle infinie ?`);
+      }
+    } finally {
+      clearTimeout(timeoutId);
+      console.log   = origLog;
+      console.warn  = origWarn;
+      console.error = origError;
+    }
+
+    const tTotal = performance.now() - t0;
+    const result = captured.length > 0 ? captured.join('\n') : '(pas de sortie)';
+
+    printRaw(
+      '✔ Exécution réussie\n\n' +
+      '─── Sortie ───\n' +
+      result + '\n' +
+      '──────────────\n\n' +
+      js.split('\n').length + ' lignes JS générées' +
+      (hasImport ? ' · imports résolus' : ''),
+      'success'
+    );
+    execTimeEl.textContent = `compile ${tCompile.toFixed(1)}ms · total ${tTotal.toFixed(1)}ms`;
+    setStatus('Exécution OK', 'ok');
+
+  } catch (err) {
+    const msg = err && err.toString ? err.toString() : (err && err.message) || String(err);
+    printError({
+      title: 'Erreur à l\'exécution',
+      detail: msg,
+      steps: [
+        'Relis la ligne indiquée dans le message',
+        'Vérifie les types, les noms de variables, les bornes d\'index',
+        'Utilise "Formater" pour indenter correctement le code'
+      ]
+    });
+    setStatus('Erreur', 'err');
+  } finally {
+    isRunning = false;
+    $('runBtn').disabled = false;
+  }
+}
+
+// ============================================================
+// Formatage
+// ============================================================
+
+function formatCode() {
+  const lines = editorEl.value.split('\n');
+  let depth = 0;
+  const out = [];
+  for (let raw of lines) {
+    const line = raw.trim();
+    if (!line) { out.push(''); continue; }
+    const dedent = /^(end|else\b|catch\b)/.test(line);
+    if (dedent && depth > 0) depth--;
+    out.push('    '.repeat(depth) + line);
+    if (/:\s*$/.test(line)) depth++;
+  }
+  editorEl.value = out.join('\n');
+  updateLineNumbers();
+  markDirty(true);
+  saveToStorage();
+  setStatus('Code formaté', 'ok');
+}
+
+// ============================================================
+// Console
+// ============================================================
+
+function clearConsole() {
+  printRaw('Prêt. Clique sur ▶ Run ou appuie sur Ctrl+Entrée pour exécuter ton code.', 'info');
+  setStatus('Prêt');
+  execTimeEl.textContent = '';
+}
+
+// ============================================================
+// Export / Import
+// ============================================================
+
+function exportFile() {
+  try {
+    const blob = new Blob([editorEl.value], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'main.akari';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setStatus('Fichier exporté', 'ok');
+  } catch (err) {
+    printError({ title: 'Export échoué', detail: err.message });
+  }
+}
+
+$('fileInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  if (file.size > MAX_IMPORT_SIZE) {
+    printError({
+      title: 'Fichier trop volumineux',
+      detail: `Taille : ${(file.size / 1024 / 1024).toFixed(2)} MB (max 5 MB).`
+    });
+    e.target.value = '';
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    editorEl.value = ev.target.result;
+    updateLineNumbers();
+    markDirty(false);
+    saveToStorage();
+    setStatus('Fichier importé : ' + file.name, 'ok');
+  };
+  reader.onerror = () => {
+    printError({ title: 'Lecture du fichier échouée', detail: 'Fichier corrompu ou inaccessible.' });
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+// ============================================================
+// Boutons
+// ============================================================
+
+$('runBtn').addEventListener('click', runCode);
+$('formatBtn').addEventListener('click', formatCode);
+$('saveBtn').addEventListener('click', exportFile);
+$('openBtn').addEventListener('click', () => $('fileInput').click());
+$('clearBtn').addEventListener('click', clearConsole);
+
+// ============================================================
+// Erreurs globales
+// ============================================================
+
+window.addEventListener('error', (e) => {
+  console.error('[Playground] Erreur :', e.message);
+});
+window.addEventListener('unhandledrejection', (e) => {
+  console.error('[Playground] Promesse rejetée :', e.reason);
+});
+
+// ============================================================
+// Démarrage
+// ============================================================
+
+(function init() {
+  editorEl.value = loadFromStorage();
+  updateLineNumbers();
+  markDirty(false);
+  loadEngine();
+})();
+</script>
+
+</body>
+</html>

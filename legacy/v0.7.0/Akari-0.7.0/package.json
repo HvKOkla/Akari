@@ -1,0 +1,52 @@
+{
+  "name": "akari-lang",
+  "version": "0.7.0", ,
+  "description": "A safe, embeddable scripting language for your app. Sandboxed by default.",
+  "main": "dist/index.js",
+  "bin": {
+    "akari": "dist/bin/akari.js"
+  },
+  "files": [
+    "dist/",
+    "std_akari/",
+    "README.md",
+    "LICENSE.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test:unit": "node dist/tests.js",
+    "test:conformance": "node dist/tests/conformance/run_conformance.js",
+    "test:security": "node dist/tests/security.js",
+    "test": "npm run test:unit && npm run test:conformance && npm run test:security",
+    "run": "node dist/bin/akari.js",
+    "start": "node dist/bin/akari.js examples/Hello.akari",
+    "akari": "node dist/bin/akari.js"
+  },
+  "keywords": [
+    "language",
+    "programming-language",
+    "scripting",
+    "embeddable",
+    "sandbox",
+    "compiler",
+    "transpiler",
+    "akari"
+  ],
+  "author": "HvK Okla",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/HvKOkla/Akari.git"
+  },
+  "homepage": "https://github.com/HvKOkla/Akari",
+  "bugs": {
+    "url": "https://github.com/HvKOkla/Akari/issues"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2"
+  }
+}

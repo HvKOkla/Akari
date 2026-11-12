@@ -1,0 +1,29 @@
+import "maths/base"
+
+def sin(x):
+    return __rt_math_sin(x)
+end
+
+def cos(x):
+    return __rt_math_cos(x)
+end
+
+def tan(x):
+    return __rt_math_tan(x)
+end
+
+def asin(x):
+    return __rt_math_asin(x)
+end
+
+def acos(x):
+    return __rt_math_acos(x)
+end
+
+def atan(x):
+    return __rt_math_atan(x)
+end
+
+def atan2(y, x):
+    return __rt_math_atan2(y, x)
+end

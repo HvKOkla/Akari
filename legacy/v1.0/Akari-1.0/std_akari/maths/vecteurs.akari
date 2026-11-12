@@ -1,0 +1,96 @@
+# ============================================================
+# Akari Standard Library — maths/vecteurs
+# Vecteurs 2D et 3D via buffers float32
+# ============================================================
+
+# ================= VECTEUR 2D =================
+
+def vec2(x, y):
+    let v = float32(2)
+    v[0] = x
+    v[1] = y
+    return v
+end
+
+def add2(a, b):
+    return vec2(a[0] + b[0], a[1] + b[1])
+end
+
+def sub2(a, b):
+    return vec2(a[0] - b[0], a[1] - b[1])
+end
+
+def scale2(v, k):
+    return vec2(v[0] * k, v[1] * k)
+end
+
+def dot2(a, b):
+    return a[0] * b[0] + a[1] * b[1]
+end
+
+def length2(v):
+    return positive(dot2(v, v))
+end
+
+def distance2(a, b):
+    return length2(sub2(a, b))
+end
+
+def normalize2(v):
+    let len = length2(v)
+    if len == 0:
+        return vec2(0, 0)
+    end
+    return scale2(v, 1 / len)
+end
+
+
+# ================= VECTEUR 3D =================
+
+def vec3(x, y, z):
+    let v = float32(3)
+    v[0] = x
+    v[1] = y
+    v[2] = z
+    return v
+end
+
+def add3(a, b):
+    return vec3(a[0] + b[0], a[1] + b[1], a[2] + b[2])
+end
+
+def sub3(a, b):
+    return vec3(a[0] - b[0], a[1] - b[1], a[2] - b[2])
+end
+
+def scale3(v, k):
+    return vec3(v[0] * k, v[1] * k, v[2] * k)
+end
+
+def dot3(a, b):
+    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+end
+
+def cross3(a, b):
+    return vec3(
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0]
+    )
+end
+
+def length3(v):
+    return positive(dot3(v, v))
+end
+
+def distance3(a, b):
+    return length3(sub3(a, b))
+end
+
+def normalize3(v):
+    let len = length3(v)
+    if len == 0:
+        return vec3(0, 0, 0)
+    end
+    return scale3(v, 1 / len)
+end
