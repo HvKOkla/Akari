@@ -12,7 +12,22 @@ A safe, embeddable scripting language for your app.
 
 **Status:** Production Ready · **Version:** 1.0.0 · **License:** Apache-2.0
 
----
+![CI](https://github.com/HvKOkla/Akari/actions/workflows/ci.yml/badge.svg)
+![npm](https://img.shields.io/npm/v/akari-lang)
+![crates.io](https://img.shields.io/crates/v/akari-rs)
+![License](https://img.shields.io/badge/license-Apache--2.0-blue)
+![Security](https://img.shields.io/badge/security-hardened-green)
+
+## 📖 The Story of Akari
+
+
+Akari started in **July 2026** as a weekend project to understand how languages work. It began as a simple stack-based virtual machine in JavaScript (`legacy/vm.js`).
+
+By October 2026, the project had grown, but the original JavaScript codebase was becoming a security nightmare. The project was on the verge of being **deleted forever**.
+
+Instead of abandoning it, the entire engine was rewritten in strict TypeScript, the sandbox was rebuilt from scratch using `worker_threads`, and a strict security checker was added.
+
+Today, Akari is a production-ready language with bindings for Python, Rust, and Go. It's a testament to the fact that with a bit of stubbornness, a dead project can be resurrected.
 
 ## Why Akari?
 
