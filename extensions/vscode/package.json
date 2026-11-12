@@ -1,0 +1,30 @@
+{
+  "name": "akari-lang",
+  "displayName": "Akari Language",
+  "description": "Syntax highlighting for Akari (.akari files)",
+  "version": "1.0.0",
+  "publisher": "HvKOkla",
+  "engines": {
+    "vscode": "^1.70.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "akari",
+        "aliases": ["Akari", "akari"],
+        "extensions": [".akari"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "akari",
+        "scopeName": "source.akari",
+        "path": "./syntaxes/akari.tmLanguage.json"
+      }
+    ]
+  }
+}
