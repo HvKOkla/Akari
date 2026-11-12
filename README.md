@@ -1,13 +1,18 @@
 
 # Akari
 
-> **Safe by default. Small by design.**
+<div align="center">
+  <img src="Akari.png" alt="Akari Logo" width="120" />
+  <h1>Akari</h1>
+  <p><strong>Safe by default. Small by design.</strong></p>
+</div>
 
 A safe, embeddable scripting language for your app.
 19 keywords. Explicit `end`. No I/O, no network, no crashes.
 
 **Status:** Production Ready · **Version:** 1.0.0 · **License:** Apache-2.0
 
+---
 
 ## Why Akari?
 
@@ -21,7 +26,19 @@ If you want to add **user scripting** to your game, editor, or SaaS, you need so
 - **Data Structures** — native support for Tables (`{}`) to model game entities, configs, and more.
 - **100% TypeScript** — a modular compiler (Lexer, Parser, Checker, Transpiler) strictly typed.
 - **Red Team Tested** — 32 automated tests, including 8 hacker attacks that are successfully blocked.
-- **"SQL Backend** — Transpile safe scripts to SQL queries with built-in whitelisting."
+- **SQL Backend** — Transpile safe scripts to SQL queries with built-in whitelisting.
+
+---
+
+## 🌍 Language Bindings
+
+Akari is designed to be embedded anywhere. It runs in a secure sandbox, no matter the host language.
+
+- **Node.js / Browser** (Official): `npm install akari-lang`
+- **Rust** (Published on crates.io): `cargo add akari-rs`
+- **Python** (Coming soon): `pip install akari-lang`
+
+---
 
 ## Embed in 10 lines
 
@@ -52,6 +69,7 @@ await akari.run(`
 
 ## Syntax
 
+```akari
 let x = 5          # immutable
 mut count = 0      # mutable
 
@@ -71,6 +89,7 @@ end
 for i in 1..5:
     say(i)
 end
+```
 
 ## Keywords
 
