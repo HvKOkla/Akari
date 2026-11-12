@@ -1,22 +1,41 @@
-# Node
 node_modules/
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# Build
 dist/
 build/
 *.tgz
+*.tsbuildinfo
 
-# OS
 .DS_Store
 Thumbs.db
 
-# Éditeurs
 .vscode/
 .idea/
 *.swp
 *.bat
-# Rust
+
 bindings/rust/target/
 bindings/rust/Cargo.lock
 **/*.rs.bk
+
+legacy/**/node_modules/
+legacy/**/dist/
+legacy/**/*.js.map
+
+v2/parser-go/parser-go
+v2/sandbox-rs/target/
+target/
+*.exe
+*.dll
+*.so
+*.dylib
+
+.env
+.env.local
+*.log
+v2/parser-go/parser-go
+v2/parser-go/*.exe
+v2/sandbox-rs/target/
+v2/sandbox-rs/Cargo.lock

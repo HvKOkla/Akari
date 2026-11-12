@@ -12,7 +12,8 @@ A safe, embeddable scripting language for your app.
 
 **Status:** Production Ready · **Version:** 1.0.0 · **License:** Apache-2.0
 
-![CI](https://github.com/HvKOkla/Akari/actions/workflows/ci.yml/badge.svg)
+![crates.io](https://img.shields.io/crates/v/akari-rs)
+![Downloads](https://img.shields.io/crates/d/akari-rs)
 ![npm](https://img.shields.io/npm/v/akari-lang)
 ![crates.io](https://img.shields.io/crates/v/akari-rs)
 ![License](https://img.shields.io/badge/license-Apache--2.0-blue)
