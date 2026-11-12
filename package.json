@@ -38,12 +38,14 @@
     "node": ">=16.0.0"
   },
   "repository": {
-    "type": "git",
-    "url": "https://github.com/HvKOkla/Akari.git"
-  },
-  "homepage": "https://github.com/HvKOkla/Akari",
-  "bugs": {
-    "url": "https://github.com/HvKOkla/Akari/issues"
+  "type": "git",
+  "url": "https://github.com/akari-lang/akari.git"
+},
+"homepage": "https://github.com/akari-lang/akari",
+"bugs": {
+  "url": "https://github.com/akari-lang/akari/issues"
+}
+}
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

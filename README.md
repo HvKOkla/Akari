@@ -57,7 +57,8 @@ Akari is designed to be embedded anywhere. It runs in a secure sandbox, no matte
 | **Python** | `pip install akari-lang` | 🟡 Local (Soon on PyPI) |
 | **Go** | `go get github.com/HvKOkla/Akari/bindings/go/akari` | ✅ Published on GitHub |
 
----
+## Editor Support
+- **VS Code**: [Syntax highlighting](extensions/vscode/README.md) (Download the `.vsix` file).
 
 ## Embed in 10 lines (Node.js)
 
