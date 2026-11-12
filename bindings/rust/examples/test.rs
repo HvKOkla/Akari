@@ -3,7 +3,7 @@ use akari_rs::Akari;
 fn main() {
     let akari = Akari::new();
     let code = r#"
-        let player = { "name": "Quentin", "hp": 100 }
+        let player = { "name": "Alice", "hp": 100 }
         say("Hello from Rust, " + player.name)
     "#;
     

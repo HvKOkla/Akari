@@ -1,5 +1,5 @@
 let hero = {}
-hero.name = "Quentin"
+hero.name = "Alice"
 hero.hp = 100
 hero.max_hp = 100
 hero.attack = 15

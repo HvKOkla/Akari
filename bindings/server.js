@@ -1,5 +1,5 @@
 const http = require('http');
-const { Akari } = require('../../dist/index.js');
+const { Akari } = require('../dist/index.js');
 
 const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && req.url === '/run') {
