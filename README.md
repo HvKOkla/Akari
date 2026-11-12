@@ -34,15 +34,18 @@ If you want to add **user scripting** to your game, editor, or SaaS, you need so
 
 Akari is designed to be embedded anywhere. It runs in a secure sandbox, no matter the host language.
 
-- **Node.js / Browser** (Official): `npm install akari-lang`
-- **Rust** (Published on crates.io): `cargo add akari-rs`
-- **Python** (Coming soon): `pip install akari-lang`
+| Language | Package | Status |
+|----------|---------|--------|
+| **Node.js** | `npm install akari-lang` | ✅ Official |
+| **Rust** | `cargo add akari-rs` | ✅ Published on crates.io |
+| **Python** | `pip install akari-lang` | 🟡 Local (Soon on PyPI) |
+| **Go** | `go get github.com/HvKOkla/Akari/bindings/go/akari` | ✅ Published on GitHub |
 
 ---
 
-## Embed in 10 lines
+## Embed in 10 lines (Node.js)
 
-Akari is designed to be embedded. You can run untrusted user code safely in your Node.js application:
+Akari is designed to be embedded. You can run untrusted user code safely in your application:
 
 ```javascript
 const { Akari } = require('akari-lang');
