@@ -1,3 +1,5 @@
 *.akari linguist-language=Akari
 *.stdout linguist-generated=true
 *.stderr linguist-generated=true
+legacy/* linguist-vendored
+legacy/** linguist-vendored
