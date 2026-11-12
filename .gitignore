@@ -16,3 +16,7 @@ Thumbs.db
 .idea/
 *.swp
 *.bat
+# Rust
+bindings/rust/target/
+bindings/rust/Cargo.lock
+**/*.rs.bk
