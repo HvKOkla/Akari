@@ -1,5 +1,0 @@
-for user in users:
-    if user.age > 18 && user.country == "FR":
-        return user.name
-    end
-end

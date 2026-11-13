@@ -1,3 +1,0 @@
-let player = { "name": "Quentin", "hp": 100 }
-say(player.name)
-say(player.hp)

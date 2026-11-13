@@ -1,1 +1,0 @@
-SELECT user.name FROM users WHERE ((user.age > 18) AND (user.country = 'FR')) LIMIT 1000;
