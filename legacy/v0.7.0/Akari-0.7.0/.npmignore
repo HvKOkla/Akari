@@ -1,7 +1,0 @@
-examples/
-extensions/
-spec/
-legacy/
-.github/
-tests/
-*.test.js
